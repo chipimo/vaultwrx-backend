@@ -59,12 +59,14 @@ const finalEntities = defaultEntities.filter(
 // If NETLIFY_DATABASE_URL is available, use it directly (TypeORM supports url property)
 export const dbConfig: any = netlifyDbUrl ? {
   type: connectionType,
+  name: 'default', // Explicitly set connection name to 'default'
   url: netlifyDbUrl, // Use connection URL directly
   entities: finalEntities,
   logging: toBool(env('TYPEORM_LOGGING')),
   synchronize: toBool(env('TYPEORM_SYNCHRONIZE')),
 } : {
   type: connectionType,
+  name: 'default', // Explicitly set connection name to 'default'
   host: env('TYPEORM_HOST'),
   port: parseInt(env('TYPEORM_PORT') || '5432', 10),
   database: env('TYPEORM_DATABASE'),

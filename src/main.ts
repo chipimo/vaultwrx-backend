@@ -19,7 +19,7 @@ import { loadEventDispatcher } from '@base/utils/load-event-dispatcher';
 import { useContainer as routingControllersUseContainer, useExpressServer, getMetadataArgsStorage } from 'routing-controllers';
 import { loadHelmet } from '@base/utils/load-helmet';
 import { Container } from 'typedi';
-import { createConnection, useContainer as typeormOrmUseContainer } from 'typeorm';
+import { createConnection, getConnection, useContainer as typeormOrmUseContainer } from 'typeorm';
 import { Container as containerTypeorm } from 'typeorm-typedi-extensions';
 import { useSocketServer, useContainer as socketUseContainer } from 'socket-controllers';
 import { registerController as registerCronJobs, useContainer as cronUseContainer } from 'cron-decorators';
@@ -81,8 +81,23 @@ export class App {
 
   private async typeOrmCreateConnection() {
     try {
-      // Create the main connection first
-      const connection = await createConnection(dbConfig);
+      let connection;
+      
+      // In serverless environments, connections might persist between invocations
+      // Check if a connection already exists before creating a new one
+      try {
+        connection = getConnection();
+        // Check if connection is actually connected
+        if (!connection.isConnected) {
+          // Connection exists but is not connected, try to reconnect
+          await connection.connect();
+        }
+        console.log('✅ Reusing existing database connection');
+      } catch (getConnectionError: any) {
+        // No existing connection, create a new one
+        console.log('🔄 Creating new database connection...');
+        connection = await createConnection(dbConfig);
+      }
       
       // Try to create UUID function if it doesn't exist
       // This is a helper function for databases that don't have it by default
