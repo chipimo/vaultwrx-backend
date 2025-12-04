@@ -12,13 +12,12 @@ const rootDir = path.resolve(__dirname, '../..');
 const distDir = path.join(rootDir, 'dist');
 
 // Register aliases to match the TypeScript path mappings
+// Note: We only use addAliases() and don't call moduleAlias() 
+// because that tries to read package.json which isn't available in Netlify's environment
 moduleAlias.addAliases({
   '@base': distDir,
   '@api': path.join(distDir, 'api')
 });
-
-// Apply the aliases
-moduleAlias();
 
 // Lazy load the app to avoid bundler static analysis issues
 let appInstance;
