@@ -1,0 +1,250 @@
+# Azure DevOps Pipeline for VaultWrx Backend Service
+# This pipeline builds, tests, and deploys the TypeScript Express application
+
+trigger:
+  branches:
+    include:
+      - main
+      - dev
+  paths:
+    exclude:
+      - README.md
+      - .gitignore
+
+pr:
+  branches:
+    include:
+      - main
+      - dev
+
+variables:
+  buildConfiguration: 'Release'
+  nodeVersion: '22.17.1'
+  
+  dockerRegistry: 'vaultwrx-registry-connection'
+  imageRepository: 'vaultwrx-backend-service'
+  containerRegistry: 'vaultwrx-registry-connection'
+  acrUrl: 'vaultwrxregistry.azurecr.io'
+  
+  NODE_ENV: 'production'
+
+stages:
+- stage: Build
+  displayName: 'Build and Test'
+  jobs:
+  - job: BuildJob
+    displayName: 'Build Application'
+    pool:
+      vmImage: 'ubuntu-latest'
+    
+    steps:
+    - task: NodeTool@0
+      displayName: 'Install Node.js'
+      inputs:
+        versionSpec: $(nodeVersion)
+    
+    - script: |
+        echo "Node version:"
+        node --version
+        echo "NPM version:"
+        npm --version
+      displayName: 'Display Node and NPM versions'
+    
+    - task: Cache@2
+      displayName: 'Cache NPM packages'
+      inputs:
+        key: 'npm | "$(Agent.OS)" | package-lock.json'
+        restoreKeys: |
+          npm | "$(Agent.OS)"
+        path: '$(System.DefaultWorkingDirectory)/node_modules'
+    
+    - script: |
+        npm ci
+      displayName: 'Install dependencies'
+    
+    - script: |
+        npm run build
+      displayName: 'Build TypeScript'
+    
+    - script: |
+        npm run lint
+      displayName: 'Run Linting'
+    
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish Build Artifacts'
+      inputs:
+        pathToPublish: '$(System.DefaultWorkingDirectory)/dist'
+        artifactName: 'dist'
+    
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish Package Files'
+      inputs:
+        pathToPublish: '$(System.DefaultWorkingDirectory)'
+        artifactName: 'package'
+        excludePaths: |
+          node_modules
+          .git
+          .azure-pipelines
+          src
+          *.log
+
+- stage: Test
+  displayName: 'Run Tests'
+  dependsOn: Build
+  condition: succeeded()
+  jobs:
+  - job: TestJob
+    displayName: 'Execute Tests'
+    pool:
+      vmImage: 'ubuntu-latest'
+    
+    steps:
+    - task: NodeTool@0
+      displayName: 'Install Node.js'
+      inputs:
+        versionSpec: $(nodeVersion)
+    
+    - task: Cache@2
+      displayName: 'Cache NPM packages'
+      inputs:
+        key: 'npm | "$(Agent.OS)" | package-lock.json'
+        restoreKeys: |
+          npm | "$(Agent.OS)"
+        path: '$(System.DefaultWorkingDirectory)/node_modules'
+    
+    - script: |
+        npm ci
+      displayName: 'Install dependencies'
+    
+    - script: |
+        npm run test
+      displayName: 'Run Unit Tests'
+    
+    - script: |
+        npm run test:coverage || echo "Coverage tests completed"
+      displayName: 'Run Coverage Tests'
+      continueOnError: true
+    
+    - task: PublishTestResults@2
+      displayName: 'Publish Test Results'
+      inputs:
+        testResultsFormat: 'JUnit'
+        testResultsFiles: '**/test-results.xml'
+        mergeTestResults: true
+        failTaskOnFailedTests: true
+    
+    - task: PublishCodeCoverageResults@1
+      displayName: 'Publish Code Coverage'
+      inputs:
+        codeCoverageTool: 'Cobertura'
+        summaryFileLocation: '$(System.DefaultWorkingDirectory)/coverage/cobertura-coverage.xml'
+        reportDirectory: '$(System.DefaultWorkingDirectory)/coverage'
+      continueOnError: true
+
+- stage: Security
+  displayName: 'Security Scan'
+  dependsOn: Build
+  condition: succeeded()
+  jobs:
+  - job: SecurityJob
+    displayName: 'Security Analysis'
+    pool:
+      vmImage: 'ubuntu-latest'
+    
+    steps:
+    - task: NodeTool@0
+      displayName: 'Install Node.js'
+      inputs:
+        versionSpec: $(nodeVersion)
+    
+    - script: |
+        npm ci
+      displayName: 'Install dependencies'
+    
+    - script: |
+        npm audit --audit-level=high
+      displayName: 'Run Security Audit'
+    
+    - script: |
+        npx snyk test || echo "Snyk security scan completed"
+      displayName: 'Run Snyk Security Scan'
+      continueOnError: true
+
+- stage: Docker
+  displayName: 'Build and Push Docker Image'
+  dependsOn: 
+    - Build
+    - Test
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+  - job: DockerJob
+    displayName: 'Docker Build and Push'
+    pool:
+      vmImage: 'ubuntu-latest'
+    
+    steps:
+    - task: Docker@2
+      displayName: 'Build Docker Image'
+      inputs:
+        containerRegistry: $(containerRegistry)
+        repository: $(imageRepository)
+        command: 'build'
+        Dockerfile: '**/Dockerfile'
+        arguments: '--target production-build-stage'
+        tags: |
+          $(Build.BuildId)
+          latest
+    
+    - task: Docker@2
+      displayName: 'Push Docker Image'
+      inputs:
+        containerRegistry: $(containerRegistry)
+        repository: $(imageRepository)
+        command: 'push'
+        tags: |
+          $(Build.BuildId)
+          latest
+
+- stage: Deploy
+  displayName: 'Deploy to Environment'
+  dependsOn: Docker
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+  - deployment: DeployToStaging
+    displayName: 'Deploy to Staging'
+    environment: 'staging'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: AzureWebAppContainer@1
+            displayName: 'Deploy to Azure Web App'
+            inputs:
+              azureSubscription: 'Azure subscription 1'
+              appName: 'vaultwrx-backend-dev'
+              containers: '$(acrUrl)/$(imageRepository):$(Build.BuildId)'
+              appSettings: |
+                -NODE_ENV "staging"
+                -PORT "3060"
+                -APP_PORT "3060"
+  
+  - deployment: DeployToProduction
+    displayName: 'Deploy to Production'
+    environment: 'production'
+    dependsOn: DeployToStaging
+    condition: succeeded()
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: AzureWebAppContainer@1
+            displayName: 'Deploy to Azure Web App'
+            inputs:
+              azureSubscription: 'Azure subscription 1'
+              appName: 'vaultwrx-backend-dev'
+              containers: '$(acrUrl)/$(imageRepository):$(Build.BuildId)'
+              appSettings: |
+                -NODE_ENV "production"
+                -PORT "3060"
+                -APP_PORT "3060"
+
