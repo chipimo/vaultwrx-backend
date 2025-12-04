@@ -34,17 +34,30 @@ import { dbConfig } from '@base/config/db';
 export class App {
   public app: express.Application = express();
   private port: Number = appConfig.port;
+  private bootstrapPromise: Promise<void> | null = null;
+  private isBootstrapped: boolean = false;
+  private server: any = null;
 
   public constructor() {
-    // Start bootstrap but handle errors to avoid unhandled promise rejections
-    this.bootstrap().catch((error) => {
-      console.error('App bootstrap failed:', error);
-      // In serverless, we might want to continue even if bootstrap fails
-      // The appReady promise will also reject, allowing callers to handle it
-    });
+    // Don't call bootstrap here - let it be called explicitly via bootstrap() or appReady
   }
 
   public async bootstrap() {
+    // Prevent double initialization
+    if (this.isBootstrapped) {
+      return;
+    }
+    
+    if (this.bootstrapPromise) {
+      return this.bootstrapPromise;
+    }
+
+    this.bootstrapPromise = this._bootstrap();
+    await this.bootstrapPromise;
+    this.isBootstrapped = true;
+  }
+
+  private async _bootstrap() {
     this.useContainers();
     await this.typeOrmCreateConnection();
     this.registerEvents();
@@ -68,11 +81,13 @@ export class App {
 
   private async typeOrmCreateConnection() {
     try {
-      const tempConfig = { ...dbConfig, synchronize: false };
-      const tempConnection = await createConnection(tempConfig);
+      // Create the main connection first
+      const connection = await createConnection(dbConfig);
       
+      // Try to create UUID function if it doesn't exist
+      // This is a helper function for databases that don't have it by default
       try {
-        await tempConnection.query(`
+        await connection.query(`
           CREATE OR REPLACE FUNCTION uuid_generate_v4()
           RETURNS uuid AS $$
           BEGIN
@@ -81,13 +96,15 @@ export class App {
           $$ LANGUAGE plpgsql;
         `);
       } catch (funcError: any) {
+        // Ignore errors - function might already exist or user might not have permissions
+        // This is not critical for the app to function
         if (process.env.NODE_ENV !== 'production') {
           console.warn('Could not create UUID function:', funcError?.message);
         }
       }
       
-      await tempConnection.close();
-      await createConnection(dbConfig);
+      // Connection is now ready to use
+      return connection;
     } catch (error) {
       console.error('❌ Cannot connect to database:', error instanceof Error ? error.message : error);
       throw error;
@@ -117,8 +134,13 @@ export class App {
   }
 
   private registerSocketControllers() {
-    const server = require('http').Server(this.app);
-    const io = require('socket.io')(server);
+    // Prevent double initialization - if server already exists, don't create another
+    if (this.server) {
+      return;
+    }
+
+    this.server = require('http').Server(this.app);
+    const io = require('socket.io')(this.server);
 
     this.app.use(function (req: any, res: any, next) {
       req.io = io;
@@ -135,11 +157,14 @@ export class App {
     );
 
     if (!isServerless) {
-      server.listen(this.port, () => {
-        if (process.env.NODE_ENV !== 'production') {
-          console.log(`🚀 Server started at http://localhost:${this.port}`);
-        }
-      });
+      // Check if server is already listening
+      if (!this.server.listening) {
+        this.server.listen(this.port, () => {
+          if (process.env.NODE_ENV !== 'production') {
+            console.log(`🚀 Server started at http://localhost:${this.port}`);
+          }
+        });
+      }
     }
 
     useSocketServer(io, {
@@ -236,8 +261,7 @@ export class App {
   }
 }
 
-// Create app instance - bootstrap will be called in constructor
-// Note: bootstrap is async, so we need to handle initialization properly
+// Create app instance
 const appInstance = new App();
 
 // Export app for serverless functions (Netlify, etc.)
@@ -246,6 +270,7 @@ export const app = appInstance.app;
 
 // Export a promise that resolves when the app is fully initialized
 // This is useful for serverless functions that need to wait for initialization
+// Start bootstrap here (only once)
 export const appReady = appInstance.bootstrap().catch((error) => {
   console.error('Failed to initialize app:', error);
   throw error;

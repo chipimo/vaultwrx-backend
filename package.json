@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Express typescript.",
   "dependencies": {
+    "@netlify/neon": "^0.1.0",
     "@types/glob": "^7.1.4",
     "@types/jsonwebtoken": "^8.5.5",
     "@types/mailgen": "^2.0.5",
@@ -18,6 +19,7 @@
     "cors": "^2.8.5",
     "cron-decorators": "^0.1.5",
     "dotenv": "^8.6.0",
+    "drizzle-orm": "^0.44.7",
     "event-dispatch": "^0.4.1",
     "express": "^4.17.1",
     "express-graphql": "^0.12.0",
@@ -60,6 +62,7 @@
     "@types/nodemailer": "^6.4.4",
     "@types/pg": "^8.15.6",
     "@types/supertest": "^2.0.11",
+    "drizzle-kit": "^0.31.7",
     "jest": "^27.1.1",
     "nodemon": "^2.0.12",
     "prettier": "^2.4.0",
@@ -84,7 +87,10 @@
     "code:check": "prettier --check \"src/**/*.{ts,css,js,html}\"",
     "code:format:specific-file": "prettier --write ",
     "test": "jest",
-    "cli": "ts-node -r ./fix-module-alias.js src/utils/cli.ts"
+    "cli": "ts-node -r ./fix-module-alias.js src/utils/cli.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "netlify dev:exec drizzle-kit migrate",
+    "db:studio": "netlify dev:exec drizzle-kit studio"
   },
   "repository": {
     "type": "git",

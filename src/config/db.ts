@@ -42,18 +42,28 @@ const connectionType = (env('TYPEORM_CONNECTION') || 'postgres') as 'postgres' |
 const sslConfig = getSslConfig();
 const defaultEntities = entities;
 
+// Check if Netlify database URL is available (preferred for Netlify deployments)
+const netlifyDbUrl = env('NETLIFY_DATABASE_URL');
+
 const dbPassword = env('TYPEORM_PASSWORD');
 const dbPasswordString = dbPassword ? String(dbPassword) : '';
 
-if (!dbPasswordString) {
-  console.warn('WARNING: TYPEORM_PASSWORD is not set! Database connection will fail.');
+if (!netlifyDbUrl && !dbPasswordString) {
+  console.warn('WARNING: Neither NETLIFY_DATABASE_URL nor TYPEORM_PASSWORD is set! Database connection will fail.');
 }
 
 const finalEntities = defaultEntities.filter(
   (entity) => typeof entity === 'function' && entity.prototype && entity.prototype.constructor
 );
 
-export const dbConfig: any = {
+// If NETLIFY_DATABASE_URL is available, use it directly (TypeORM supports url property)
+export const dbConfig: any = netlifyDbUrl ? {
+  type: connectionType,
+  url: netlifyDbUrl, // Use connection URL directly
+  entities: finalEntities,
+  logging: toBool(env('TYPEORM_LOGGING')),
+  synchronize: toBool(env('TYPEORM_SYNCHRONIZE')),
+} : {
   type: connectionType,
   host: env('TYPEORM_HOST'),
   port: parseInt(env('TYPEORM_PORT') || '5432', 10),
@@ -65,25 +75,36 @@ export const dbConfig: any = {
   synchronize: toBool(env('TYPEORM_SYNCHRONIZE')),
 };
 
-const isAzurePostgres = dbConfig.host && (
-  dbConfig.host.includes('.postgres.database.azure.com') ||
-  dbConfig.host.includes('.database.azure.com') ||
-  dbConfig.host.includes('azure.com')
-);
-const isRemoteHost = dbConfig.host && dbConfig.host !== 'localhost' && dbConfig.host !== '127.0.0.1' && !dbConfig.host.includes('localhost');
+// SSL configuration - only apply if not using URL (URLs include SSL info)
+if (!netlifyDbUrl) {
+  const isAzurePostgres = dbConfig.host && (
+    dbConfig.host.includes('.postgres.database.azure.com') ||
+    dbConfig.host.includes('.database.azure.com') ||
+    dbConfig.host.includes('azure.com')
+  );
+  const isRemoteHost = dbConfig.host && dbConfig.host !== 'localhost' && dbConfig.host !== '127.0.0.1' && !dbConfig.host.includes('localhost');
 
-if (isAzurePostgres || isRemoteHost) {
+  if (isAzurePostgres || isRemoteHost) {
+    const sslValue = { rejectUnauthorized: false };
+    dbConfig.extra = {
+      ssl: sslValue,
+    };
+    dbConfig.ssl = sslValue;
+  } else if (sslConfig) {
+    dbConfig.extra = {
+      ssl: sslConfig === true ? true : sslConfig,
+    };
+    if (typeof sslConfig === 'object') {
+      dbConfig.ssl = sslConfig;
+    }
+  }
+} else {
+  // For Netlify database URL, SSL is handled by the connection string
+  // But we may still need to set it explicitly for TypeORM
   const sslValue = { rejectUnauthorized: false };
   dbConfig.extra = {
     ssl: sslValue,
   };
   dbConfig.ssl = sslValue;
-} else if (sslConfig) {
-  dbConfig.extra = {
-    ssl: sslConfig === true ? true : sslConfig,
-  };
-  if (typeof sslConfig === 'object') {
-    dbConfig.ssl = sslConfig;
-  }
 }
 

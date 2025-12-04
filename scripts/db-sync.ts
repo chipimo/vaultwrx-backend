@@ -1,7 +1,7 @@
-import 'reflect-metadata';
-import { fixModuleAlias } from '../src/utils/fix-module-alias';
-fixModuleAlias(__dirname);
+// Load module alias first
+require('../fix-module-alias');
 
+import 'reflect-metadata';
 import { createConnection } from 'typeorm';
 import { dbConfig } from '@base/config/db';
 
@@ -9,11 +9,13 @@ async function syncDatabase() {
   try {
     console.log('🔄 Starting database synchronization...');
     
-    const tempConfig = { ...dbConfig, synchronize: false };
-    const tempConnection = await createConnection(tempConfig);
+    // Create connection with synchronize enabled
+    const syncConfig = { ...dbConfig, synchronize: true };
+    const connection = await createConnection(syncConfig);
     
+    // Try to create UUID function if it doesn't exist
     try {
-      await tempConnection.query(`
+      await connection.query(`
         CREATE OR REPLACE FUNCTION uuid_generate_v4()
         RETURNS uuid AS $$
         BEGIN
@@ -23,13 +25,9 @@ async function syncDatabase() {
       `);
       console.log('✅ UUID function configured');
     } catch (funcError: any) {
+      // Ignore errors - function might already exist or user might not have permissions
       console.warn('⚠️ Could not create UUID function:', funcError?.message);
     }
-    
-    await tempConnection.close();
-    
-    const syncConfig = { ...dbConfig, synchronize: true };
-    const connection = await createConnection(syncConfig);
     
     console.log('✅ Database synchronized successfully');
     console.log('📋 Tables have been created/updated based on your entities');
