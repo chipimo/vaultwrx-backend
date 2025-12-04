@@ -2,6 +2,10 @@
 const serverless = require('serverless-http');
 const path = require('path');
 
+// Explicitly require dotenv to ensure it's bundled by Netlify
+// This is needed because main.js uses dotenv but the bundler might not detect it
+require('dotenv');
+
 // Set up environment for serverless
 process.env.NODE_ENV = process.env.NODE_ENV || 'production';
 
