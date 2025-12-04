@@ -32,7 +32,7 @@ import bodyParser from 'body-parser';
 import { dbConfig } from '@base/config/db';
 
 export class App {
-  private app: express.Application = express();
+  public app: express.Application = express();
   private port: Number = appConfig.port;
 
   public constructor() {
@@ -220,4 +220,13 @@ export class App {
   }
 }
 
-new App();
+// Create and export app instance
+const appInstance = new App();
+
+// Export app for serverless functions (Netlify, etc.)
+export const app = appInstance.app;
+
+// For regular server usage, keep the original behavior
+if (require.main === module) {
+  // This will run when executed directly (not as a module)
+}
