@@ -33,6 +33,9 @@ async function initializeApp() {
   }
 
   try {
+    // Set serverless environment flag before loading main module
+    process.env.NETLIFY = 'true';
+    
     // Clear any cached modules to ensure fresh load
     const mainPath = path.join(distDir, 'main.js');
     
@@ -49,10 +52,15 @@ async function initializeApp() {
       throw new Error('App instance not exported from main module. Make sure main.ts exports the app.');
     }
     
-    appInstance = mainModule.app;
+    // Wait for the app to be fully initialized (database connections, etc.)
+    if (mainModule.appReady) {
+      await mainModule.appReady;
+    } else {
+      // Fallback: wait a bit for async initialization
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
     
-    // Give time for async initialization (database connections, etc.)
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    appInstance = mainModule.app;
     
     return appInstance;
   } catch (error) {

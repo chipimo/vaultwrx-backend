@@ -36,7 +36,12 @@ export class App {
   private port: Number = appConfig.port;
 
   public constructor() {
-    this.bootstrap();
+    // Start bootstrap but handle errors to avoid unhandled promise rejections
+    this.bootstrap().catch((error) => {
+      console.error('App bootstrap failed:', error);
+      // In serverless, we might want to continue even if bootstrap fails
+      // The appReady promise will also reject, allowing callers to handle it
+    });
   }
 
   public async bootstrap() {
@@ -120,11 +125,22 @@ export class App {
       next();
     });
 
-    server.listen(this.port, () => {
-      if (process.env.NODE_ENV !== 'production') {
-        console.log(`🚀 Server started at http://localhost:${this.port}`);
-      }
-    });
+    // Only listen on a port if NOT running in serverless environment
+    // Serverless environments (Netlify, AWS Lambda, etc.) don't allow listening on ports
+    const isServerless = !!(
+      process.env.NETLIFY ||
+      process.env.AWS_LAMBDA_FUNCTION_NAME ||
+      process.env.VERCEL ||
+      process.env._HANDLER
+    );
+
+    if (!isServerless) {
+      server.listen(this.port, () => {
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`🚀 Server started at http://localhost:${this.port}`);
+        }
+      });
+    }
 
     useSocketServer(io, {
       controllers: [__dirname + appConfig.controllersDir],
@@ -220,13 +236,29 @@ export class App {
   }
 }
 
-// Create and export app instance
+// Create app instance - bootstrap will be called in constructor
+// Note: bootstrap is async, so we need to handle initialization properly
 const appInstance = new App();
 
 // Export app for serverless functions (Netlify, etc.)
+// The app will be initialized asynchronously via bootstrap()
 export const app = appInstance.app;
+
+// Export a promise that resolves when the app is fully initialized
+// This is useful for serverless functions that need to wait for initialization
+export const appReady = appInstance.bootstrap().catch((error) => {
+  console.error('Failed to initialize app:', error);
+  throw error;
+});
 
 // For regular server usage, keep the original behavior
 if (require.main === module) {
   // This will run when executed directly (not as a module)
+  // Wait for app to be ready
+  appReady.then(() => {
+    console.log('App initialized successfully');
+  }).catch((error) => {
+    console.error('App initialization failed:', error);
+    process.exit(1);
+  });
 }
