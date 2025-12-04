@@ -261,11 +261,26 @@ export class App {
 
     const graphqlHTTP = require('express-graphql').graphqlHTTP;
 
-    const schema = await buildSchema({
+    // Check if we're in a serverless/read-only environment
+    // In serverless, we can't write files, so skip emitSchemaFile
+    const isServerless = !!(
+      process.env.NETLIFY ||
+      process.env.AWS_LAMBDA_FUNCTION_NAME ||
+      process.env.VERCEL ||
+      process.env._HANDLER
+    );
+
+    const schemaOptions: any = {
       resolvers: [__dirname + appConfig.resolversDir],
-      emitSchemaFile: path.resolve(__dirname, 'schema.gql'),
       container: Container,
-    });
+    };
+
+    // Only emit schema file if not in serverless environment
+    if (!isServerless) {
+      schemaOptions.emitSchemaFile = path.resolve(__dirname, 'schema.gql');
+    }
+
+    const schema = await buildSchema(schemaOptions);
 
     this.app.use('/graphql', (request: express.Request, response: express.Response) => {
       graphqlHTTP({
