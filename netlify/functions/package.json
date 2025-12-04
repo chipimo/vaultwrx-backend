@@ -1,0 +1,7 @@
+{
+  "name": "netlify-function-server",
+  "version": "1.0.0",
+  "description": "Netlify serverless function for Express app",
+  "type": "commonjs"
+}
+

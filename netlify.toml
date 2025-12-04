@@ -1,10 +1,13 @@
 [build]
-  command = "npm install && npm run build"
+  command = "npm install --legacy-peer-deps && npm run build || (echo 'Build failed!' && exit 1)"
   publish = "dist"
   functions = "netlify/functions"
 
 [build.environment]
   NODE_VERSION = "18"
+
+[functions]
+  included_files = ["dist/**"]
 
 [[redirects]]
   from = "/*"
