@@ -19,7 +19,7 @@ import { loadEventDispatcher } from '@base/utils/load-event-dispatcher';
 import { useContainer as routingControllersUseContainer, useExpressServer, getMetadataArgsStorage } from 'routing-controllers';
 import { loadHelmet } from '@base/utils/load-helmet';
 import { Container } from 'typedi';
-import { createConnection, getConnection, useContainer as typeormOrmUseContainer } from 'typeorm';
+import { createConnection, useContainer as typeormOrmUseContainer } from 'typeorm';
 import { Container as containerTypeorm } from 'typeorm-typedi-extensions';
 import { useSocketServer, useContainer as socketUseContainer } from 'socket-controllers';
 import { registerController as registerCronJobs, useContainer as cronUseContainer } from 'cron-decorators';
@@ -32,32 +32,14 @@ import bodyParser from 'body-parser';
 import { dbConfig } from '@base/config/db';
 
 export class App {
-  public app: express.Application = express();
+  private app: express.Application = express();
   private port: Number = appConfig.port;
-  private bootstrapPromise: Promise<void> | null = null;
-  private isBootstrapped: boolean = false;
-  private server: any = null;
 
   public constructor() {
-    // Don't call bootstrap here - let it be called explicitly via bootstrap() or appReady
+    this.bootstrap();
   }
 
   public async bootstrap() {
-    // Prevent double initialization
-    if (this.isBootstrapped) {
-      return;
-    }
-    
-    if (this.bootstrapPromise) {
-      return this.bootstrapPromise;
-    }
-
-    this.bootstrapPromise = this._bootstrap();
-    await this.bootstrapPromise;
-    this.isBootstrapped = true;
-  }
-
-  private async _bootstrap() {
     this.useContainers();
     await this.typeOrmCreateConnection();
     this.registerEvents();
@@ -81,28 +63,11 @@ export class App {
 
   private async typeOrmCreateConnection() {
     try {
-      let connection;
+      const tempConfig = { ...dbConfig, synchronize: false };
+      const tempConnection = await createConnection(tempConfig);
       
-      // In serverless environments, connections might persist between invocations
-      // Check if a connection already exists before creating a new one
       try {
-        connection = getConnection();
-        // Check if connection is actually connected
-        if (!connection.isConnected) {
-          // Connection exists but is not connected, try to reconnect
-          await connection.connect();
-        }
-        console.log('✅ Reusing existing database connection');
-      } catch (getConnectionError: any) {
-        // No existing connection, create a new one
-        console.log('🔄 Creating new database connection...');
-        connection = await createConnection(dbConfig);
-      }
-      
-      // Try to create UUID function if it doesn't exist
-      // This is a helper function for databases that don't have it by default
-      try {
-        await connection.query(`
+        await tempConnection.query(`
           CREATE OR REPLACE FUNCTION uuid_generate_v4()
           RETURNS uuid AS $$
           BEGIN
@@ -111,15 +76,13 @@ export class App {
           $$ LANGUAGE plpgsql;
         `);
       } catch (funcError: any) {
-        // Ignore errors - function might already exist or user might not have permissions
-        // This is not critical for the app to function
         if (process.env.NODE_ENV !== 'production') {
           console.warn('Could not create UUID function:', funcError?.message);
         }
       }
       
-      // Connection is now ready to use
-      return connection;
+      await tempConnection.close();
+      await createConnection(dbConfig);
     } catch (error) {
       console.error('❌ Cannot connect to database:', error instanceof Error ? error.message : error);
       throw error;
@@ -149,38 +112,19 @@ export class App {
   }
 
   private registerSocketControllers() {
-    // Prevent double initialization - if server already exists, don't create another
-    if (this.server) {
-      return;
-    }
-
-    this.server = require('http').Server(this.app);
-    const io = require('socket.io')(this.server);
+    const server = require('http').Server(this.app);
+    const io = require('socket.io')(server);
 
     this.app.use(function (req: any, res: any, next) {
       req.io = io;
       next();
     });
 
-    // Only listen on a port if NOT running in serverless environment
-    // Serverless environments (Netlify, AWS Lambda, etc.) don't allow listening on ports
-    const isServerless = !!(
-      process.env.NETLIFY ||
-      process.env.AWS_LAMBDA_FUNCTION_NAME ||
-      process.env.VERCEL ||
-      process.env._HANDLER
-    );
-
-    if (!isServerless) {
-      // Check if server is already listening
-      if (!this.server.listening) {
-        this.server.listen(this.port, () => {
-          if (process.env.NODE_ENV !== 'production') {
-            console.log(`🚀 Server started at http://localhost:${this.port}`);
-          }
-        });
+    server.listen(this.port, () => {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`🚀 Server started at http://localhost:${this.port}`);
       }
-    }
+    });
 
     useSocketServer(io, {
       controllers: [__dirname + appConfig.controllersDir],
@@ -261,26 +205,11 @@ export class App {
 
     const graphqlHTTP = require('express-graphql').graphqlHTTP;
 
-    // Check if we're in a serverless/read-only environment
-    // In serverless, we can't write files, so skip emitSchemaFile
-    const isServerless = !!(
-      process.env.NETLIFY ||
-      process.env.AWS_LAMBDA_FUNCTION_NAME ||
-      process.env.VERCEL ||
-      process.env._HANDLER
-    );
-
-    const schemaOptions: any = {
+    const schema = await buildSchema({
       resolvers: [__dirname + appConfig.resolversDir],
+      emitSchemaFile: path.resolve(__dirname, 'schema.gql'),
       container: Container,
-    };
-
-    // Only emit schema file if not in serverless environment
-    if (!isServerless) {
-      schemaOptions.emitSchemaFile = path.resolve(__dirname, 'schema.gql');
-    }
-
-    const schema = await buildSchema(schemaOptions);
+    });
 
     this.app.use('/graphql', (request: express.Request, response: express.Response) => {
       graphqlHTTP({
@@ -291,29 +220,4 @@ export class App {
   }
 }
 
-// Create app instance
-const appInstance = new App();
-
-// Export app for serverless functions (Netlify, etc.)
-// The app will be initialized asynchronously via bootstrap()
-export const app = appInstance.app;
-
-// Export a promise that resolves when the app is fully initialized
-// This is useful for serverless functions that need to wait for initialization
-// Start bootstrap here (only once)
-export const appReady = appInstance.bootstrap().catch((error) => {
-  console.error('Failed to initialize app:', error);
-  throw error;
-});
-
-// For regular server usage, keep the original behavior
-if (require.main === module) {
-  // This will run when executed directly (not as a module)
-  // Wait for app to be ready
-  appReady.then(() => {
-    console.log('App initialized successfully');
-  }).catch((error) => {
-    console.error('App initialization failed:', error);
-    process.exit(1);
-  });
-}
+new App();

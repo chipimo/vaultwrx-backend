@@ -22,6 +22,8 @@ import { Cremation } from '@api/models/Products/Cremation';
 import { Monument } from '@api/models/Products/Monument';
 import { BulkPrecast } from '@api/models/Products/BulkPrecast';
 import { Color } from '@api/models/Products/Color';
+import { Emblem } from '@api/models/Products/Emblem';
+import { Category } from '@api/models/Products/Category';
 import { Location } from '@api/models/Products/Location';
 import { ServiceExtra } from '@api/models/Products/ServiceExtra';
 import { Permission } from '@api/models/Security/Permission';
@@ -53,6 +55,8 @@ const allEntities = [
   Monument,
   BulkPrecast,
   Color,
+  Emblem,
+  Category,
   Location,
   ServiceExtra,
   Permission,

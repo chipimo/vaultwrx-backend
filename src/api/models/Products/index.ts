@@ -1,5 +1,6 @@
 export { Product, ProductType } from './Product';
 export { Color, ColorType } from './Color';
+export { Emblem } from './Emblem';
 export { Location } from './Location';
 export { ServiceExtra } from './ServiceExtra';
 export { Vault } from './Vault';

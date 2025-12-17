@@ -1,9 +1,9 @@
 import { Factory, Seeder } from 'typeorm-seeding';
 import { Connection } from 'typeorm/connection/Connection';
 import { Product, ProductType } from '@api/models/Products/Product';
-import { Color, ColorType } from '@api/models/Products/Color';
-import { Location } from '@api/models/Products/Location';
-import { ServiceExtra } from '@api/models/Products/ServiceExtra';
+import { Color } from '@api/models/Products/Color';
+import { Emblem } from '@api/models/Products/Emblem';
+import { Category } from '@api/models/Products/Category';
 import { Retailer } from '@api/models/Users/Retailer';
 import { Company } from '@api/models/Company/Company';
 import { Vault } from '@api/models/Products/Vault';
@@ -20,8 +20,8 @@ export default class CreateProducts implements Seeder {
   public async run(factory: Factory, connection: Connection): Promise<any> {
     const productRepository = connection.getRepository(Product);
     const colorRepository = connection.getRepository(Color);
-    const locationRepository = connection.getRepository(Location);
-    const serviceExtraRepository = connection.getRepository(ServiceExtra);
+    const emblemRepository = connection.getRepository(Emblem);
+    const categoryRepository = connection.getRepository(Category);
     const companyRepository = connection.getRepository(Company);
     const retailerRepository = connection.getRepository(Retailer);
     const vaultRepository = connection.getRepository(Vault);
@@ -49,88 +49,30 @@ export default class CreateProducts implements Seeder {
       const retailer = await retailerRepository.findOne({ where: { id: company.retailer_id } });
       if (!retailer) continue;
 
-      // Create colors first
-      const colors = [
-        { name: 'Red', hexCode: '#FF0000', type: ColorType.PAINT_COLOR },
-        { name: 'Blue', hexCode: '#0000FF', type: ColorType.PAINT_COLOR },
-        { name: 'Green', hexCode: '#008000', type: ColorType.PAINT_COLOR },
-        { name: 'Mahogany', hexCode: '#800000', type: ColorType.PAINT_COLOR },
-        { name: 'Grey', hexCode: '#808080', type: ColorType.PAINT_COLOR },
-        { name: 'Concrete', hexCode: '#C0C0C0', type: ColorType.PAINT_COLOR },
-        { name: 'Silver', hexCode: '#C0C0C0', type: ColorType.PAINT_COLOR },
-        { name: 'White', hexCode: '#FFFFFF', type: ColorType.PAINT_COLOR },
-        { name: 'Black', hexCode: '#000000', type: ColorType.PAINT_COLOR },
-      ];
+      // Fetch colors, emblems, and categories from the database
+      const companyColors = await colorRepository.find({ where: { companyId: company.id, isActive: true } });
+      const companyEmblems = await emblemRepository.find({ where: { companyId: company.id, isActive: true } });
+      const companyCategories = await categoryRepository.find({ where: { companyId: company.id, isActive: true } });
 
-      for (const colorData of colors) {
-        const existingColor = await colorRepository.findOne({
-          where: { name: colorData.name, retailerId: retailer.id },
-        });
+      // Create a map for quick category lookup by name
+      const categoryMap = new Map<string, Category>();
+      companyCategories.forEach(cat => categoryMap.set(cat.name, cat));
 
-        if (!existingColor) {
-          const color = colorRepository.create({
-            ...colorData,
-            companyId: company.id,
-            retailerId: retailer.id,
-            isActive: true,
-          });
-          await colorRepository.save(color);
-          console.log(`✅ Created color: ${colorData.name} for ${company.name}`);
-        }
-      }
+      // Helper function to get category name from the database
+      const getCategoryName = (categoryName: string): string => {
+        const category = categoryMap.get(categoryName);
+        return category ? category.name : categoryName;
+      };
 
-      // Create locations
-      const locationNames = ['Funeral Home', 'Church', 'Grave Site', 'Delivery', 'Cemetery', 'Crematorium', 'Other'];
+      console.log(`  📋 Found ${companyColors.length} colors, ${companyEmblems.length} emblems, and ${companyCategories.length} categories for ${company.name}`);
 
-      for (const locationName of locationNames) {
-        const existingLocation = await locationRepository.findOne({
-          where: { name: locationName, retailerId: retailer.id },
-        });
+      const getColorByName = (name: string): Color | null => {
+        return companyColors.find(c => c.name === name) || null;
+      };
+      const getEmblemByName = (name: string): Emblem | null => {
+        return companyEmblems.find(e => e.name === name) || null;
+      };
 
-        if (!existingLocation) {
-          const location = locationRepository.create({
-            companyId: company.id,
-            retailerId: retailer.id,
-            name: locationName,
-            address: company.address,
-            city: 'Springfield',
-            state: 'IL',
-            zipCode: '62701',
-            phone: company.phone,
-            email: company.email,
-            isActive: true,
-          });
-          await locationRepository.save(location);
-          console.log(`✅ Created location: ${locationName} for ${company.name}`);
-        }
-      }
-
-      // Create service extras
-      const serviceExtras = [
-        { name: 'Custom Engraving', description: 'Custom text engraving', price: 150.00, category: 'Customization' },
-        { name: 'Rush Delivery', description: 'Expedited delivery service', price: 200.00, category: 'Delivery' },
-        { name: 'Setup Service', description: 'Professional setup and installation', price: 100.00, category: 'Setup' },
-        { name: 'Emblem Application', description: 'Apply custom emblem', price: 75.00, category: 'Customization' },
-      ];
-
-      for (const extraData of serviceExtras) {
-        const existingExtra = await serviceExtraRepository.findOne({
-          where: { name: extraData.name, retailerId: retailer.id },
-        });
-
-        if (!existingExtra) {
-          const serviceExtra = serviceExtraRepository.create({
-            ...extraData,
-            companyId: company.id,
-            retailerId: retailer.id,
-            isActive: true,
-          });
-          await serviceExtraRepository.save(serviceExtra);
-          console.log(`✅ Created service extra: ${extraData.name} for ${company.name}`);
-        }
-      }
-
-      // Create products
       const products = [
         // Vaults
         {
@@ -138,22 +80,65 @@ export default class CreateProducts implements Seeder {
           retailerId: retailer.id,
           name: 'Continental Vault',
           type: ProductType.VAULT,
-          category: 'Premium',
+          category: getCategoryName('Premium'),
           price: 1200.00,
           quantity: 80,
           description: 'Premium continental vault with standard features',
           isActive: true,
+          emblemName: 'Cross',
+          colorName: 'Grey',
         },
         {
           companyId: company.id,
           retailerId: retailer.id,
           name: 'Standard Vault',
           type: ProductType.VAULT,
-          category: 'Standard',
+          category: getCategoryName('Standard'),
           price: 1000.00,
           quantity: 100,
           description: 'Standard vault for traditional services',
           isActive: true,
+          emblemName: 'No Emblem',
+          colorName: 'Concrete',
+        },
+        {
+          companyId: company.id,
+          retailerId: retailer.id,
+          name: 'Premium Bronze Vault',
+          type: ProductType.VAULT,
+          category: getCategoryName('Premium'),
+          price: 1500.00,
+          quantity: 50,
+          description: 'Premium vault with bronze finish',
+          isActive: true,
+          emblemName: 'Angel',
+          colorName: 'Bronze',
+        },
+        {
+          companyId: company.id,
+          retailerId: retailer.id,
+          name: 'Military Honor Vault',
+          type: ProductType.VAULT,
+          category: getCategoryName('Premium'),
+          price: 1400.00,
+          quantity: 30,
+          description: 'Vault with military honors and American flag emblem',
+          isActive: true,
+          emblemName: 'American Flag',
+          colorName: 'Navy',
+        },
+        {
+          companyId: company.id,
+          retailerId: retailer.id,
+          name: 'Traditional White Vault',
+          type: ProductType.VAULT,
+          category: getCategoryName('Standard'),
+          price: 1100.00,
+          quantity: 75,
+          description: 'Traditional white vault with dove emblem',
+          isActive: true,
+          emblemName: 'Dove',
+          colorName: 'White',
         },
         // Caskets
         {
@@ -161,7 +146,7 @@ export default class CreateProducts implements Seeder {
           retailerId: retailer.id,
           name: 'Bronze Casket',
           type: ProductType.CASKET,
-          category: 'Premium',
+          category: getCategoryName('Premium'),
           price: 2400.00,
           quantity: 50,
           description: 'Premium bronze casket with elegant finish',
@@ -172,7 +157,7 @@ export default class CreateProducts implements Seeder {
           retailerId: retailer.id,
           name: 'Mahogany Casket',
           type: ProductType.CASKET,
-          category: 'Premium',
+          category: getCategoryName('Premium'),
           price: 2200.00,
           quantity: 40,
           description: 'Traditional mahogany wood casket',
@@ -183,7 +168,7 @@ export default class CreateProducts implements Seeder {
           retailerId: retailer.id,
           name: 'Oak Casket',
           type: ProductType.CASKET,
-          category: 'Standard',
+          category: getCategoryName('Standard'),
           price: 1800.00,
           quantity: 60,
           description: 'Classic oak wood casket',
@@ -195,7 +180,7 @@ export default class CreateProducts implements Seeder {
           retailerId: retailer.id,
           name: 'Bronze Urn',
           type: ProductType.URN,
-          category: 'Standard',
+          category: getCategoryName('Standard'),
           price: 400.00,
           quantity: 200,
           description: 'Elegant bronze cremation urn',
@@ -206,7 +191,7 @@ export default class CreateProducts implements Seeder {
           retailerId: retailer.id,
           name: 'Ceramic Urn',
           type: ProductType.URN,
-          category: 'Standard',
+          category: getCategoryName('Standard'),
           price: 350.00,
           quantity: 150,
           description: 'Beautiful ceramic cremation urn',
@@ -217,7 +202,7 @@ export default class CreateProducts implements Seeder {
           retailerId: retailer.id,
           name: 'Marble Urn',
           type: ProductType.URN,
-          category: 'Premium',
+          category: getCategoryName('Premium'),
           price: 600.00,
           quantity: 100,
           description: 'Premium marble cremation urn',
@@ -229,7 +214,7 @@ export default class CreateProducts implements Seeder {
           retailerId: retailer.id,
           name: 'Granite Monument',
           type: ProductType.MONUMENT,
-          category: 'Premium',
+          category: getCategoryName('Premium'),
           price: 3100.00,
           quantity: 0,
           description: 'Custom granite monument with engraving',
@@ -240,7 +225,7 @@ export default class CreateProducts implements Seeder {
           retailerId: retailer.id,
           name: 'Marble Monument',
           type: ProductType.MONUMENT,
-          category: 'Premium',
+          category: getCategoryName('Premium'),
           price: 3500.00,
           quantity: 0,
           description: 'Elegant marble monument',
@@ -252,7 +237,7 @@ export default class CreateProducts implements Seeder {
           retailerId: retailer.id,
           name: 'Cremation Service',
           type: ProductType.CREMATION,
-          category: 'Service',
+          category: getCategoryName('Service'),
           price: 825.00,
           quantity: 0,
           description: 'Complete cremation service with documentation',
@@ -264,7 +249,7 @@ export default class CreateProducts implements Seeder {
           retailerId: retailer.id,
           name: 'Traditional Grave Digging',
           type: ProductType.GRAVE_DIGGING,
-          category: 'Service',
+          category: getCategoryName('Service'),
           price: 1150.00,
           quantity: 0,
           description: 'Traditional grave opening and closing service',
@@ -275,7 +260,7 @@ export default class CreateProducts implements Seeder {
           retailerId: retailer.id,
           name: 'Adult Grave Digging',
           type: ProductType.GRAVE_DIGGING,
-          category: 'Service',
+          category: getCategoryName('Service'),
           price: 1000.00,
           quantity: 0,
           description: 'Adult-sized grave digging service',
@@ -286,7 +271,7 @@ export default class CreateProducts implements Seeder {
           retailerId: retailer.id,
           name: 'Oversized Grave Digging',
           type: ProductType.GRAVE_DIGGING,
-          category: 'Service',
+          category: getCategoryName('Service'),
           price: 1300.00,
           quantity: 0,
           description: 'Oversized grave digging service',
@@ -298,7 +283,7 @@ export default class CreateProducts implements Seeder {
           retailerId: retailer.id,
           name: 'Concrete Precast Block',
           type: ProductType.BULK_PRECAST,
-          category: 'Bulk',
+          category: getCategoryName('Bulk'),
           price: 450.00,
           quantity: 0,
           description: 'Standard concrete precast block',
@@ -309,7 +294,7 @@ export default class CreateProducts implements Seeder {
           retailerId: retailer.id,
           name: 'Reinforced Precast Slab',
           type: ProductType.BULK_PRECAST,
-          category: 'Bulk',
+          category: getCategoryName('Bulk'),
           price: 550.00,
           quantity: 0,
           description: 'Reinforced precast concrete slab',
@@ -329,21 +314,22 @@ export default class CreateProducts implements Seeder {
         if (!existingProduct) {
           const product = productRepository.create(productData);
           await productRepository.save(product);
-          console.log(`✅ Created product: ${productData.name} (${productData.type}) for ${company.name}`);
+          console.log(` Created product: ${productData.name} (${productData.type}) for ${company.name}`);
 
-          // Create product type specific records
           try {
             switch (productData.type) {
               case ProductType.VAULT:
+                const vaultData = productData as any;
+                const vaultColor = vaultData.colorName ? getColorByName(vaultData.colorName) : null;
+                const vaultEmblem = vaultData.emblemName ? getEmblemByName(vaultData.emblemName) : null;
+                
                 const vault = vaultRepository.create({
                   productId: product.id,
-                  cemeteryName: 'Pineview Memorial Park',
-                  cemeteryState: 'IL',
-                  funeralServiceType: null,
-                  hasCustomization: false,
+                  emblemId: vaultEmblem?.id || null,
+                  colourId: vaultColor?.id || null,
                 });
                 await vaultRepository.save(vault);
-                console.log(`  ✅ Created vault details for ${productData.name}`);
+                    console.log(`   Created vault details for ${productData.name} (Color: ${vaultColor?.name || 'None'}, Emblem: ${vaultEmblem?.name || 'None'})`);
                 break;
 
               case ProductType.CASKET:
@@ -353,7 +339,7 @@ export default class CreateProducts implements Seeder {
                   theme: 'Traditional',
                 });
                 await casketRepository.save(casket);
-                console.log(`  ✅ Created casket details for ${productData.name}`);
+                console.log(`  Created casket details for ${productData.name}`);
                 break;
 
               case ProductType.URN:
@@ -363,11 +349,10 @@ export default class CreateProducts implements Seeder {
                   hasCustomization: false,
                 });
                 await urnRepository.save(urn);
-                console.log(`  ✅ Created urn details for ${productData.name}`);
+                console.log(`  Created urn details for ${productData.name}`);
                 break;
 
               case ProductType.GRAVE_DIGGING:
-                // Determine grave size based on product name
                 let graveSize = GraveSize.TRADITIONAL;
                 if (productData.name.includes('Adult')) {
                   graveSize = GraveSize.ADULT;
@@ -385,7 +370,7 @@ export default class CreateProducts implements Seeder {
                   monumentInPlace: false,
                 });
                 await graveDiggingRepository.save(graveDigging);
-                console.log(`  ✅ Created grave digging details for ${productData.name}`);
+                console.log(`  Created grave digging details for ${productData.name}`);
                 break;
 
               case ProductType.CREMATION:
@@ -396,7 +381,7 @@ export default class CreateProducts implements Seeder {
                   cremainsContainerTypes: [CremainsContainerType.URN_BY_COMPANY],
                 });
                 await cremationRepository.save(cremation);
-                console.log(`  ✅ Created cremation details for ${productData.name}`);
+                console.log(`  Created cremation details for ${productData.name}`);
                 break;
 
               case ProductType.MONUMENT:
@@ -405,7 +390,7 @@ export default class CreateProducts implements Seeder {
                   lastDayLettering: false,
                 });
                 await monumentRepository.save(monument);
-                console.log(`  ✅ Created monument details for ${productData.name}`);
+                console.log(`  Created monument details for ${productData.name}`);
                 break;
 
               case ProductType.BULK_PRECAST:
@@ -415,11 +400,12 @@ export default class CreateProducts implements Seeder {
                   quantity: 1,
                 });
                 await bulkPrecastRepository.save(bulkPrecast);
-                console.log(`  ✅ Created bulk/precast details for ${productData.name}`);
+                console.log(`  Created bulk/precast details for ${productData.name}`);
                 break;
             }
           } catch (error) {
-            console.error(`  ❌ Error creating product type details for ${productData.name}:`, error);
+            console.error(`  
+               Error creating product type details for ${productData.name}:`, error);
           }
         }
       }

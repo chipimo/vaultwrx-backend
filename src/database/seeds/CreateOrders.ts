@@ -7,6 +7,7 @@ import { Comment } from '@api/models/Orders/Comment';
 import { Product } from '@api/models/Products/Product';
 import { Color } from '@api/models/Products/Color';
 import { Location } from '@api/models/Products/Location';
+import { ServiceExtra } from '@api/models/Products/ServiceExtra';
 import { Company } from '@api/models/Company/Company';
 import { Retailer } from '@api/models/Users/Retailer';
 import { Customer } from '@api/models/Users/Customer';
@@ -21,6 +22,7 @@ export default class CreateOrders implements Seeder {
     const productRepository = connection.getRepository(Product);
     const colorRepository = connection.getRepository(Color);
     const locationRepository = connection.getRepository(Location);
+    const serviceExtraRepository = connection.getRepository(ServiceExtra);
     const companyRepository = connection.getRepository(Company);
     const retailerRepository = connection.getRepository(Retailer);
     const customerRepository = connection.getRepository(Customer);
@@ -38,6 +40,57 @@ export default class CreateOrders implements Seeder {
 
       const retailer = await retailerRepository.findOne({ where: { id: company.retailer_id } });
       if (!retailer) continue;
+
+      // Create locations
+      const locationNames = ['Funeral Home', 'Church', 'Grave Site', 'Delivery', 'Cemetery', 'Crematorium', 'Other'];
+
+      for (const locationName of locationNames) {
+        const existingLocation = await locationRepository.findOne({
+          where: { name: locationName, retailerId: retailer.id },
+        });
+
+        if (!existingLocation) {
+          const location = locationRepository.create({
+            companyId: company.id,
+            retailerId: retailer.id,
+            name: locationName,
+            address: company.address,
+            city: 'Springfield',
+            state: 'IL',
+            zipCode: '62701',
+            phone: company.phone,
+            email: company.email,
+            isActive: true,
+          });
+          await locationRepository.save(location);
+          console.log(`  ✅ Created location: ${locationName} for ${company.name}`);
+        }
+      }
+
+      // Create service extras
+      const serviceExtras = [
+        { name: 'Custom Engraving', description: 'Custom text engraving', price: 150.00, category: 'Customization' },
+        { name: 'Rush Delivery', description: 'Expedited delivery service', price: 200.00, category: 'Delivery' },
+        { name: 'Setup Service', description: 'Professional setup and installation', price: 100.00, category: 'Setup' },
+        { name: 'Emblem Application', description: 'Apply custom emblem', price: 75.00, category: 'Customization' },
+      ];
+
+      for (const extraData of serviceExtras) {
+        const existingExtra = await serviceExtraRepository.findOne({
+          where: { name: extraData.name, retailerId: retailer.id },
+        });
+
+        if (!existingExtra) {
+          const serviceExtra = serviceExtraRepository.create({
+            ...extraData,
+            companyId: company.id,
+            retailerId: retailer.id,
+            isActive: true,
+          });
+          await serviceExtraRepository.save(serviceExtra);
+          console.log(`  ✅ Created service extra: ${extraData.name} for ${company.name}`);
+        }
+      }
 
       const customers = await customerRepository.find({
         where: { company_id: company.id },
@@ -208,7 +261,7 @@ export default class CreateOrders implements Seeder {
   ) {
     const order = orderRepo.create({
       companyId: company.id,
-      userId: customer.id,
+      userId: customer.user_id,  // User table ID, not Customer table ID
       retailerId: retailer.id,
       customerId: customer.id,
       staffId: staff?.id || null,
@@ -289,7 +342,7 @@ export default class CreateOrders implements Seeder {
   ) {
     const order = orderRepo.create({
       companyId: company.id,
-      userId: customer.id,
+      userId: customer.user_id,
       retailerId: retailer.id,
       customerId: customer.id,
       staffId: staff?.id || null,
@@ -367,7 +420,7 @@ export default class CreateOrders implements Seeder {
   ) {
     const order = orderRepo.create({
       companyId: company.id,
-      userId: customer.id,
+      userId: customer.user_id,
       retailerId: retailer.id,
       customerId: customer.id,
       staffId: staff?.id || null,
@@ -441,7 +494,7 @@ export default class CreateOrders implements Seeder {
   ) {
     const order = orderRepo.create({
       companyId: company.id,
-      userId: customer.id,
+      userId: customer.user_id,
       retailerId: retailer.id,
       customerId: customer.id,
       staffId: staff?.id || null,
@@ -520,7 +573,7 @@ export default class CreateOrders implements Seeder {
   ) {
     const order = orderRepo.create({
       companyId: company.id,
-      userId: customer.id,
+      userId: customer.user_id,
       retailerId: retailer.id,
       customerId: customer.id,
       staffId: staff?.id || null,
@@ -597,7 +650,7 @@ export default class CreateOrders implements Seeder {
   ) {
     const order = orderRepo.create({
       companyId: company.id,
-      userId: customer.id,
+      userId: customer.user_id,
       retailerId: retailer.id,
       customerId: customer.id,
       staffId: staff?.id || null,

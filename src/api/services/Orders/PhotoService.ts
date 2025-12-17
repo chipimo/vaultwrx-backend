@@ -15,7 +15,11 @@ export class PhotoService {
     return await this.photoRepository.getManyAndCount(resourceOptions);
   }
 
-  public async findOneById(id: number, resourceOptions?: object) {
+  public async getByOrderId(orderId: string, resourceOptions?: object) {
+    return await this.photoRepository.getByOrderId(orderId, resourceOptions);
+  }
+
+  public async findOneById(id: string, resourceOptions?: object) {
     return await this.getRequestedPhotoOrFail(id, resourceOptions);
   }
 
@@ -27,18 +31,18 @@ export class PhotoService {
     return photo;
   }
 
-  public async updateOneById(id: number, data: object) {
+  public async updateOneById(id: string, data: object) {
     const photo = await this.getRequestedPhotoOrFail(id);
 
     return await this.photoRepository.updatePhoto(photo, data);
   }
 
-  public async deleteOneById(id: number) {
+  public async deleteOneById(id: string) {
     return await this.photoRepository.delete(id);
   }
 
-  private async getRequestedPhotoOrFail(id: number, resourceOptions?: object) {
-    let photo = await this.photoRepository.getOneById(id, resourceOptions);
+  private async getRequestedPhotoOrFail(id: string, resourceOptions?: object) {
+    let photo = await this.photoRepository.getOneById(id as any, resourceOptions);
 
     if (!photo) {
       throw new PhotoNotFoundException();
@@ -47,4 +51,3 @@ export class PhotoService {
     return photo;
   }
 }
-

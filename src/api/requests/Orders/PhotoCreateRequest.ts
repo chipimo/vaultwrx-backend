@@ -3,12 +3,12 @@ import { PhotoType } from '@api/models/Orders/Photo';
 
 export class PhotoCreateRequest {
   @IsNotEmpty()
-  @IsNumber()
-  orderId: number;
+  @IsString()
+  orderId: string;
 
   @IsNotEmpty()
-  @IsNumber()
-  userId: number;
+  @IsString()
+  userId: string;
 
   @IsNotEmpty()
   @IsString()
@@ -30,4 +30,3 @@ export class PhotoCreateRequest {
   @IsString()
   mimeType?: string;
 }
-

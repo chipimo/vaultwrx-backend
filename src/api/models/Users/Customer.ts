@@ -64,10 +64,6 @@ export class Customer extends EntityBase {
 
   // Order relationships
   @Field(() => [Order], { nullable: true })
-  @OneToMany(() => Order, (order) => order.user, { cascade: false })
-  userOrders: Order[];
-
-  @Field(() => [Order], { nullable: true })
   @OneToMany(() => Order, (order) => order.customer, { cascade: false })
   customerOrders: Order[];
 

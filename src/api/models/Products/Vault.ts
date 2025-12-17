@@ -1,8 +1,9 @@
-import { Column, Entity, OneToOne, PrimaryGeneratedColumn, JoinColumn } from 'typeorm';
+import { Column, Entity, OneToOne, PrimaryGeneratedColumn, JoinColumn, ManyToOne } from 'typeorm';
 import { ObjectType, Field } from 'type-graphql';
 import { EntityBase } from '@base/infrastructure/abstracts/EntityBase';
 import { Product } from './Product';
-import { ServiceType } from '../Orders/Order';
+import { Color } from './Color';
+import { Emblem } from './Emblem';
 
 @ObjectType()
 @Entity({ name: 'vaults' })
@@ -20,58 +21,23 @@ export class Vault extends EntityBase {
   @JoinColumn({ name: 'product_id' })
   product: Product;
 
-  @Field({ nullable: true })
-  @Column({ name: 'cemetery_name', nullable: true })
-  cemeteryName: string;
+  @Field(() => Emblem, { nullable: true })
+  @ManyToOne(() => Emblem, (emblem) => emblem.vaults, { nullable: true })
+  @JoinColumn({ name: 'emblem_id' })
+  emblem: Emblem;
 
-  @Field({ nullable: true })
-  @Column({ name: 'cemetery_state', nullable: true })
-  cemeteryState: string;
+  @Field(() => String, { nullable: true })
+  @Column({ name: 'emblem_id', type: 'uuid', nullable: true })
+  emblemId: string;
 
-  @Field(() => ServiceType, { nullable: true })
-  @Column({
-    name: 'funeral_service_type',
-    type: 'varchar',
-    length: 50,
-    nullable: true,
-  })
-  funeralServiceType: ServiceType;
+  @Field(() => Color, { nullable: true })
+  @ManyToOne(() => Color, { nullable: true })
+  @JoinColumn({ name: 'colour_id' })
+  colour: Color;
 
-  @Field({ nullable: true })
-  @Column({ name: 'service_location', nullable: true })
-  serviceLocation: string;
-
-  @Field({ nullable: true })
-  @Column({ name: 'service_date', type: 'date', nullable: true })
-  serviceDate: Date;
-
-  @Field({ nullable: true })
-  @Column({ name: 'service_start_time', type: 'time', nullable: true })
-  serviceStartTime: string;
-
-  @Field({ nullable: true })
-  @Column({ name: 'arrival_at_graveside', type: 'time', nullable: true })
-  arrivalAtGraveside: string;
-
-  @Field(() => [String], { nullable: true })
-  @Column({ name: 'extras', type: 'json', nullable: true })
-  extras: string[]; 
-
-  @Field({ nullable: true })
-  @Column({ name: 'has_customization', type: 'boolean', default: false })
-  hasCustomization: boolean;
-
-  @Field({ nullable: true })
-  @Column({ name: 'artwork_reference', nullable: true })
-  artworkReference: string; 
-
-  @Field(() => [String], { nullable: true })
-  @Column({ name: 'attachments', type: 'json', nullable: true })
-  attachments: string[]; 
-
-  @Field({ nullable: true })
-  @Column({ name: 'comments_or_delivery_instructions', type: 'text', nullable: true })
-  commentsOrDeliveryInstructions: string;
+  @Field(() => String, { nullable: true })
+  @Column({ name: 'colour_id', type: 'uuid', nullable: true })
+  colourId: string;
 
   @Field()
   @Column({ name: 'created_at', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })

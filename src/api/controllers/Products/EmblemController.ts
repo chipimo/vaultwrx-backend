@@ -1,10 +1,10 @@
 import { Param, Get, JsonController, Post, Body, Put, Delete, HttpCode, UseBefore, QueryParams, Req, UploadedFile } from 'routing-controllers';
-import { ProductService } from '@api/services/Products/ProductService';
+import { EmblemService } from '@api/services/Products/EmblemService';
 import { Service } from 'typedi';
-import { ProductCreateRequest } from '@api/requests/Products/ProductCreateRequest';
+import { EmblemCreateRequest } from '@api/requests/Products/EmblemCreateRequest';
 import { AuthCheck } from '@base/infrastructure/middlewares/Auth/AuthCheck';
 import { ControllerBase } from '@base/infrastructure/abstracts/ControllerBase';
-import { ProductUpdateRequest } from '@api/requests/Products/ProductUpdateRequest';
+import { EmblemUpdateRequest } from '@api/requests/Products/EmblemUpdateRequest';
 import { OpenAPI } from 'routing-controllers-openapi';
 import { RequestQueryParser } from 'typeorm-simple-query-parser';
 import { Request } from 'express';
@@ -19,14 +19,14 @@ const storage = multer.memoryStorage();
 const fileUploadOptions = {
   storage: storage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
+    fileSize: 5 * 1024 * 1024, // 5MB limit for emblems
   },
   fileFilter: (req: any, file: any, cb: any) => {
-    const allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
     if (allowedMimes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.'), false);
+      cb(new Error('Invalid file type. Only JPEG, PNG, GIF, WebP, and SVG are allowed.'), false);
     }
   },
 };
@@ -35,11 +35,11 @@ const fileUploadOptions = {
 @OpenAPI({
   security: [{ bearerAuth: [] }],
 })
-@JsonController('/products')
+@JsonController('/emblems')
 @UseBefore(AuthCheck)
-export class ProductController extends ControllerBase {
+export class EmblemController extends ControllerBase {
   public constructor(
-    private productService: ProductService,
+    private emblemService: EmblemService,
     private storageService: StorageService
   ) {
     super();
@@ -51,16 +51,7 @@ export class ProductController extends ControllerBase {
     if (!companyId) throw new NotFoundError('Company ID is required in the headers.');
 
     const resourceOptions = parseResourceOptions.getAll();
-    return await this.productService.getAll(resourceOptions, companyId);
-  }
-
-  @Get('/grouped-by-type')
-  public async getGroupedByType(@QueryParams() parseResourceOptions: RequestQueryParser, @Req() req: Request) {
-    const companyId = (req.headers['company-id'] || req.headers['x-company-id']) as string;
-    if (!companyId) throw new NotFoundError('Company ID is required in the headers.');
-
-    const resourceOptions = parseResourceOptions.getAll();
-    return await this.productService.getProductsGroupedByType(resourceOptions, companyId);
+    return await this.emblemService.getAll(resourceOptions, companyId);
   }
 
   @Get('/:id')
@@ -69,16 +60,16 @@ export class ProductController extends ControllerBase {
     if (!companyId) throw new NotFoundError('Company ID is required in the headers.');
 
     const resourceOptions = parseResourceOptions.getAll();
-    return await this.productService.findOneById(id, resourceOptions, companyId);
+    return await this.emblemService.findOneById(id, resourceOptions, companyId);
   }
 
   @Post()
   @HttpCode(201)
-  public async create(@Body() product: ProductCreateRequest, @Req() req: Request) {
+  public async create(@Body() emblem: EmblemCreateRequest, @Req() req: Request) {
     const companyId = (req.headers['company-id'] || req.headers['x-company-id']) as string;
     if (!companyId) throw new NotFoundError('Company ID is required in the headers.');
 
-    return await this.productService.create(product, companyId);
+    return await this.emblemService.create(emblem, companyId);
   }
 
   @Post('/:id/upload-image')
@@ -95,24 +86,21 @@ export class ProductController extends ControllerBase {
       throw new Error('No file uploaded');
     }
 
-    // Get product type from the product
-    const product = await this.productService.findOneById(id, undefined, companyId);
-
     // Generate unique filename
     const fileExtension = path.extname(file.originalname);
     const uniqueFileName = `${uuidv4()}${fileExtension}`;
-    const filePath = `products/${product.type}/${uniqueFileName}`;
+    const filePath = `emblems/${uniqueFileName}`;
 
     // Save file to storage
     await this.storageService.put(filePath, file.buffer);
 
-    // Update product with image info
+    // Update emblem with image info
     const updateData = {
       image: `/uploads/${filePath}`,
       imageName: file.originalname,
     };
 
-    return await this.productService.updateOneById(id, updateData, companyId);
+    return await this.emblemService.updateOneById(id, updateData, companyId);
   }
 
   @Delete('/:id/image')
@@ -127,15 +115,15 @@ export class ProductController extends ControllerBase {
       imageName: null,
     };
 
-    return await this.productService.updateOneById(id, updateData, companyId);
+    return await this.emblemService.updateOneById(id, updateData, companyId);
   }
 
   @Put('/:id')
-  public async update(@Param('id') id: string, @Body() product: ProductUpdateRequest, @Req() req: Request) {
+  public async update(@Param('id') id: string, @Body() emblem: EmblemUpdateRequest, @Req() req: Request) {
     const companyId = (req.headers['company-id'] || req.headers['x-company-id']) as string;
     if (!companyId) throw new NotFoundError('Company ID is required in the headers.');
 
-    return await this.productService.updateOneById(id, product, companyId);
+    return await this.emblemService.updateOneById(id, emblem, companyId);
   }
 
   @Delete('/:id')
@@ -144,6 +132,6 @@ export class ProductController extends ControllerBase {
     const companyId = (req.headers['company-id'] || req.headers['x-company-id']) as string;
     if (!companyId) throw new NotFoundError('Company ID is required in the headers.');
 
-    return await this.productService.deleteOneById(id, companyId);
+    return await this.emblemService.deleteOneById(id, companyId);
   }
 }

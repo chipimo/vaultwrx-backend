@@ -1,6 +1,7 @@
 import { Column, Entity, OneToMany, ManyToOne, PrimaryGeneratedColumn, JoinColumn } from 'typeorm';
 import { ObjectType, Field, registerEnumType } from 'type-graphql';
 import { EntityBase } from '@base/infrastructure/abstracts/EntityBase';
+import { User } from '../Users/User';
 import { Customer } from '../Users/Customer';
 import { Staff } from '../Users/Staff';
 import { FuneralDirector } from '../Users/FuneralDirector';
@@ -198,16 +199,8 @@ export class Order extends EntityBase {
   productPaintColorOptions: string;
 
   @Field({ nullable: true })
-  @Column({ nullable: true })
-  emblem: string;
-
-  @Field({ nullable: true })
   @Column({ name: 'service_extras', type: 'text', nullable: true })
   serviceExtras: string;
-
-  @Field({ nullable: true })
-  @Column({ nullable: true })
-  image: string;
 
   @Field({ nullable: true })
   @Column({ name: 'store_name', nullable: true })
@@ -253,10 +246,10 @@ export class Order extends EntityBase {
   @OneToMany(() => Comment, (comment) => comment.order, { cascade: true })
   orderComments: Comment[];
 
-  @Field(() => Customer, { nullable: true })
-  @ManyToOne(() => Customer, (customer) => customer.userOrders, { nullable: true })
+  @Field(() => User, { nullable: true })
+  @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'user_id' })
-  user: Customer;
+  user: User;
 
   @Field(() => Retailer, { nullable: true })
   @ManyToOne(() => Retailer, (retailer) => retailer.orders, { nullable: true })

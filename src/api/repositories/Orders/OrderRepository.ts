@@ -5,6 +5,7 @@ import { Customer } from '@api/models/Users/Customer';
 import { Retailer } from '@api/models/Users/Retailer';
 import { Staff } from '@api/models/Users/Staff';
 import { FuneralDirector } from '@api/models/Users/FuneralDirector';
+import { User } from '@api/models/Users/User';
 import { Location } from '@api/models/Products/Location';
 import { Company } from '@api/models/Company/Company';
 import { OrderItem } from '@api/models/Orders/OrderItem';
@@ -153,6 +154,11 @@ export class OrderRepository extends RepositoryBase<Order> {
 
     Object.assign(entity, data);
 
+    // Set userId to the logged-in user who is creating/placing the order
+    if (user && user.id) {
+      entity.userId = user.id;
+    }
+
     if (companyId) {
       entity.companyId = companyId;
 
@@ -218,15 +224,14 @@ export class OrderRepository extends RepositoryBase<Order> {
       }
 
       if (entity.userId) {
-        const customer = await this.manager.findOne(Customer, {
+        const user = await this.manager.findOne(User, {
           where: { id: entity.userId },
         });
-        if (!customer) {
-          throw new Error('User (customer) not found');
+        if (!user) {
+          throw new Error('User not found');
         }
-        if (customer.company_id !== companyId) {
-          throw new Error('User does not belong to the specified company');
-        }
+        // User company validation is optional - users may belong to different companies
+        // or may not have a company_id set (e.g., admins, retailers)
       }
     }
 

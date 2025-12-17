@@ -8,6 +8,9 @@ import CreateCustomers from './CreateCustomers';
 import CreateStaff from './CreateStaff';
 import CreateFuneralDirectors from './CreateFuneralDirectors';
 import CreateUsers from './CreateUsers';
+import CreateColors from './CreateColors';
+import CreateEmblems from './CreateEmblems';
+import CreateCategories from './CreateCategories';
 import CreateProducts from './CreateProducts';
 import CreateOrders from './CreateOrders';
 
@@ -63,13 +66,31 @@ export default class MasterSeeder implements Seeder {
     await createUsers.run(factory, connection);
     console.log('✅ Generic users created\n');
 
-    // 9. Create Products (colors, locations, service extras, products)
+    // 9. Create Colors
+    console.log('🎨 Creating colors...');
+    const createColors = new CreateColors();
+    await createColors.run(factory, connection);
+    console.log('✅ Colors created\n');
+
+    // 10. Create Emblems
+    console.log('🏷️ Creating emblems...');
+    const createEmblems = new CreateEmblems();
+    await createEmblems.run(factory, connection);
+    console.log('✅ Emblems created\n');
+
+    // 11. Create Categories
+    console.log('📂 Creating categories...');
+    const createCategories = new CreateCategories();
+    await createCategories.run(factory, connection);
+    console.log('✅ Categories created\n');
+
+    // 12. Create Products
     console.log('📦 Creating products...');
     const createProducts = new CreateProducts();
     await createProducts.run(factory, connection);
     console.log('✅ Products created\n');
 
-    // 10. Create Orders
+    // 13. Create Orders (includes locations and service extras)
     console.log('🛒 Creating orders...');
     const createOrders = new CreateOrders();
     await createOrders.run(factory, connection);
