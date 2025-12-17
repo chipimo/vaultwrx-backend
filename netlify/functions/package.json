@@ -2,12 +2,6 @@
   "name": "netlify-function-server",
   "version": "1.0.0",
   "description": "Netlify serverless function for Express app",
-  "type": "commonjs",
-  "dependencies": {
-    "serverless-http": "^3.0.3",
-    "dotenv": "^8.6.0",
-    "module-alias": "^2.2.2",
-    "express": "^4.17.1"
-  }
+  "type": "commonjs"
 }
 
