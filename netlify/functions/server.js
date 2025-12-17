@@ -6,26 +6,21 @@ const Module = require('module');
 process.env.NETLIFY = 'true';
 process.env.NODE_ENV = process.env.NODE_ENV || 'production';
 
-// Set up paths
+// Set up paths - use ROOT node_modules, not functions node_modules
 const functionsDir = __dirname;
 const rootDir = path.resolve(functionsDir, '../..');
 const distDir = path.join(rootDir, 'dist');
-const functionsNodeModules = path.join(functionsDir, 'node_modules');
+const rootNodeModules = path.join(rootDir, 'node_modules');
 
-// PRE-REQUIRE all modules that main.js needs BEFORE module-alias patches anything
-// This puts them in require.cache so they're found when main.js asks for them
-require(path.join(functionsNodeModules, 'reflect-metadata'));
-require(path.join(functionsNodeModules, 'express'));
-require(path.join(functionsNodeModules, 'typedi'));
-require(path.join(functionsNodeModules, 'typeorm'));
-require(path.join(functionsNodeModules, 'routing-controllers'));
-require(path.join(functionsNodeModules, 'class-transformer'));
-require(path.join(functionsNodeModules, 'class-validator'));
-require(path.join(functionsNodeModules, 'body-parser'));
-require(path.join(functionsNodeModules, 'cors'));
-require(path.join(functionsNodeModules, 'helmet'));
-require(path.join(functionsNodeModules, 'jsonwebtoken'));
-require(path.join(functionsNodeModules, 'pg'));
+// Add root node_modules to the global module paths (highest priority)
+Module.globalPaths.unshift(rootNodeModules);
+
+// Also set NODE_PATH for any child processes
+process.env.NODE_PATH = rootNodeModules + (process.env.NODE_PATH ? path.delimiter + process.env.NODE_PATH : '');
+require('module').Module._initPaths();
+
+// Pre-require reflect-metadata before anything else
+require('reflect-metadata');
 
 // Now require serverless-http and module-alias
 const serverless = require('serverless-http');
