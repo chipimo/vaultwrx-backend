@@ -1,5 +1,5 @@
 [build]
-  command = "npm install --legacy-peer-deps && npm run build || (echo 'Build failed!' && exit 1)"
+  command = "npm install --legacy-peer-deps && npm run build && cd netlify/functions && npm install --legacy-peer-deps"
   publish = "dist"
   functions = "netlify/functions"
 
@@ -7,8 +7,9 @@
   NODE_VERSION = "18"
 
 [functions]
-  node_bundler = "nft"
+  node_bundler = "esbuild"
   included_files = ["dist/**"]
+  external_node_modules = ["pg", "pg-native"]
 
 [[redirects]]
   from = "/*"
