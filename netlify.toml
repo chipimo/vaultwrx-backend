@@ -8,7 +8,7 @@
 
 [functions]
   node_bundler = "nft"
-  included_files = ["dist/**"]
+  included_files = ["dist/**", "node_modules/**"]
 
 [[redirects]]
   from = "/*"
