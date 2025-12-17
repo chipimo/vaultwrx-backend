@@ -2,27 +2,22 @@
 const path = require('path');
 const Module = require('module');
 
-// Set up paths FIRST
+// Set NETLIFY flag FIRST - before any other code runs
+// This tells the app to skip dotenv loading since Netlify provides env vars
+process.env.NETLIFY = 'true';
+process.env.NODE_ENV = process.env.NODE_ENV || 'production';
+
+// Set up paths
 const functionsDir = __dirname;
 const rootDir = path.resolve(functionsDir, '../..');
 const distDir = path.join(rootDir, 'dist');
 const functionsNodeModules = path.join(functionsDir, 'node_modules');
 
-// Add functions node_modules to global module paths BEFORE any requires
-// This makes all modules in functions/node_modules available globally
+// Add functions node_modules to global module paths
 Module.globalPaths.unshift(functionsNodeModules);
 
-// Also add to require.main.paths if available
-if (require.main && require.main.paths) {
-  require.main.paths.unshift(functionsNodeModules);
-}
-
-// Pre-require critical modules to ensure they're loaded from functions node_modules
-require('dotenv');
+// Pre-require reflect-metadata (needed for decorators)
 require('reflect-metadata');
-
-// Set up environment for serverless
-process.env.NODE_ENV = process.env.NODE_ENV || 'production';
 
 // Now require the rest
 const serverless = require('serverless-http');
