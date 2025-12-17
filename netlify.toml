@@ -1,5 +1,5 @@
 [build]
-  command = "npm install --legacy-peer-deps && npm run build && cd netlify/functions && npm install"
+  command = "npm install --legacy-peer-deps && npm run build && cd netlify/functions && npm install --legacy-peer-deps"
   publish = "dist"
   functions = "netlify/functions"
 
@@ -7,9 +7,8 @@
   NODE_VERSION = "18"
 
 [functions]
-  node_bundler = "esbuild"
+  node_bundler = "none"
   included_files = ["dist/**", "netlify/functions/node_modules/**"]
-  external_node_modules = ["serverless-http", "module-alias", "pg-native", "bcrypt", "better-sqlite3"]
 
 [[redirects]]
   from = "/*"

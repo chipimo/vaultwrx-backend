@@ -1,14 +1,34 @@
 // Netlify serverless function wrapper for Express app
-const serverless = require('serverless-http');
 const path = require('path');
-const moduleAlias = require('module-alias');
+const Module = require('module');
 
 // Set up environment for serverless
 process.env.NODE_ENV = process.env.NODE_ENV || 'production';
 
-// Set up module aliases BEFORE importing anything
+// Set up paths
 const rootDir = path.resolve(__dirname, '../..');
 const distDir = path.join(rootDir, 'dist');
+const functionsNodeModules = path.join(__dirname, 'node_modules');
+
+// Add functions node_modules to the module search path
+// This ensures dist/main.js can find dependencies installed in functions folder
+const originalResolveFilename = Module._resolveFilename;
+Module._resolveFilename = function(request, parent, isMain, options) {
+  // Try the functions node_modules first for non-relative/non-absolute requires
+  if (!request.startsWith('.') && !request.startsWith('/') && !request.startsWith('@base') && !request.startsWith('@api')) {
+    try {
+      const modulePath = path.join(functionsNodeModules, request);
+      return originalResolveFilename.call(this, modulePath, parent, isMain, options);
+    } catch (e) {
+      // Fall through to default resolution
+    }
+  }
+  return originalResolveFilename.call(this, request, parent, isMain, options);
+};
+
+// Now require the modules that need this patched resolution
+const serverless = require('serverless-http');
+const moduleAlias = require('module-alias');
 
 // Register aliases to match the TypeScript path mappings
 // Note: We only use addAliases() and don't call moduleAlias() 
