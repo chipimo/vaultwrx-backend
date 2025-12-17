@@ -1,15 +1,23 @@
 // Load environment variables FIRST, before any other imports
-import * as dotenv from 'dotenv';
 import * as path from 'path';
 
-// Determine the root directory (where .env file is located)
-// When running from dist, __dirname will be dist/, so we need to go up one level
-const rootDir = __dirname.includes('dist') ? path.resolve(__dirname, '..') : __dirname;
-dotenv.config({ path: path.join(rootDir, '.env') });
+// Skip dotenv on Netlify - environment variables are already provided
+const isNetlify = process.env.NETLIFY === 'true' || !!process.env.NETLIFY_DATABASE_URL;
 
-// Also try loading environment-specific .env files
-const nodeEnv = process.env.NODE_ENV || 'development';
-dotenv.config({ path: path.join(rootDir, `.env.${nodeEnv}`) });
+if (!isNetlify) {
+  try {
+    const dotenv = require('dotenv');
+    // Determine the root directory (where .env file is located)
+    const rootDir = __dirname.includes('dist') ? path.resolve(__dirname, '..') : __dirname;
+    dotenv.config({ path: path.join(rootDir, '.env') });
+    
+    // Also try loading environment-specific .env files
+    const nodeEnv = process.env.NODE_ENV || 'development';
+    dotenv.config({ path: path.join(rootDir, `.env.${nodeEnv}`) });
+  } catch (e) {
+    // dotenv not available, assume environment variables are set externally
+  }
+}
 
 import 'reflect-metadata';
 import { fixModuleAlias } from './utils/fix-module-alias';
@@ -32,7 +40,7 @@ import bodyParser from 'body-parser';
 import { dbConfig } from '@base/config/db';
 
 export class App {
-  private app: express.Application = express();
+  public app: express.Application = express();
   private port: Number = appConfig.port;
 
   public constructor() {
@@ -220,4 +228,9 @@ export class App {
   }
 }
 
-new App();
+// Create the app instance
+const appInstance = new App();
+
+// Export for serverless usage
+export const app = (appInstance as any).app;
+export const appReady = appInstance.bootstrap();
