@@ -11,7 +11,7 @@ import { RoleType } from '@api/models/Security/Role';
 
 @Service()
 @OpenAPI({
-  security: [{ bearerAuth: [] }],
+  security: [{ bearerAuth: [] }], // Add security definition for Swagger
 })
 @JsonController('/audit-logs')
 @UseBefore(AuthCheck)
