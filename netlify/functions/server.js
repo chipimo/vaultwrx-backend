@@ -2,31 +2,29 @@
 const path = require('path');
 const Module = require('module');
 
+// Set up paths FIRST
+const functionsDir = __dirname;
+const rootDir = path.resolve(functionsDir, '../..');
+const distDir = path.join(rootDir, 'dist');
+const functionsNodeModules = path.join(functionsDir, 'node_modules');
+
+// Add functions node_modules to global module paths BEFORE any requires
+// This makes all modules in functions/node_modules available globally
+Module.globalPaths.unshift(functionsNodeModules);
+
+// Also add to require.main.paths if available
+if (require.main && require.main.paths) {
+  require.main.paths.unshift(functionsNodeModules);
+}
+
+// Pre-require critical modules to ensure they're loaded from functions node_modules
+require('dotenv');
+require('reflect-metadata');
+
 // Set up environment for serverless
 process.env.NODE_ENV = process.env.NODE_ENV || 'production';
 
-// Set up paths
-const rootDir = path.resolve(__dirname, '../..');
-const distDir = path.join(rootDir, 'dist');
-const functionsNodeModules = path.join(__dirname, 'node_modules');
-
-// Add functions node_modules to the module search path
-// This ensures dist/main.js can find dependencies installed in functions folder
-const originalResolveFilename = Module._resolveFilename;
-Module._resolveFilename = function(request, parent, isMain, options) {
-  // Try the functions node_modules first for non-relative/non-absolute requires
-  if (!request.startsWith('.') && !request.startsWith('/') && !request.startsWith('@base') && !request.startsWith('@api')) {
-    try {
-      const modulePath = path.join(functionsNodeModules, request);
-      return originalResolveFilename.call(this, modulePath, parent, isMain, options);
-    } catch (e) {
-      // Fall through to default resolution
-    }
-  }
-  return originalResolveFilename.call(this, request, parent, isMain, options);
-};
-
-// Now require the modules that need this patched resolution
+// Now require the rest
 const serverless = require('serverless-http');
 const moduleAlias = require('module-alias');
 
