@@ -3,7 +3,6 @@ const path = require('path');
 const Module = require('module');
 
 // Set NETLIFY flag FIRST - before any other code runs
-// This tells the app to skip dotenv loading since Netlify provides env vars
 process.env.NETLIFY = 'true';
 process.env.NODE_ENV = process.env.NODE_ENV || 'production';
 
@@ -13,19 +12,26 @@ const rootDir = path.resolve(functionsDir, '../..');
 const distDir = path.join(rootDir, 'dist');
 const functionsNodeModules = path.join(functionsDir, 'node_modules');
 
-// Add functions node_modules to global module paths
-Module.globalPaths.unshift(functionsNodeModules);
+// PRE-REQUIRE all modules that main.js needs BEFORE module-alias patches anything
+// This puts them in require.cache so they're found when main.js asks for them
+require(path.join(functionsNodeModules, 'reflect-metadata'));
+require(path.join(functionsNodeModules, 'express'));
+require(path.join(functionsNodeModules, 'typedi'));
+require(path.join(functionsNodeModules, 'typeorm'));
+require(path.join(functionsNodeModules, 'routing-controllers'));
+require(path.join(functionsNodeModules, 'class-transformer'));
+require(path.join(functionsNodeModules, 'class-validator'));
+require(path.join(functionsNodeModules, 'body-parser'));
+require(path.join(functionsNodeModules, 'cors'));
+require(path.join(functionsNodeModules, 'helmet'));
+require(path.join(functionsNodeModules, 'jsonwebtoken'));
+require(path.join(functionsNodeModules, 'pg'));
 
-// Pre-require reflect-metadata (needed for decorators)
-require('reflect-metadata');
-
-// Now require the rest
+// Now require serverless-http and module-alias
 const serverless = require('serverless-http');
 const moduleAlias = require('module-alias');
 
 // Register aliases to match the TypeScript path mappings
-// Note: We only use addAliases() and don't call moduleAlias() 
-// because that tries to read package.json which isn't available in Netlify's environment
 moduleAlias.addAliases({
   '@base': distDir,
   '@api': path.join(distDir, 'api')
