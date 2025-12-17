@@ -1,5 +1,5 @@
 [build]
-  command = "npm install --legacy-peer-deps && npm run build && cd netlify/functions && npm install --legacy-peer-deps"
+  command = "npm install --legacy-peer-deps && npm run build"
   publish = "dist"
   functions = "netlify/functions"
 
@@ -7,8 +7,8 @@
   NODE_VERSION = "18"
 
 [functions]
-  node_bundler = "none"
-  included_files = ["dist/**", "node_modules/**", "netlify/functions/node_modules/**"]
+  node_bundler = "nft"
+  included_files = ["dist/**"]
 
 [[redirects]]
   from = "/*"
