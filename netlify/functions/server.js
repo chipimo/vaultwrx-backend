@@ -1,24 +1,7 @@
 // Netlify serverless function wrapper for Express app
-// Explicitly require all dependencies at the top for NFT bundler to trace them
 const serverless = require('serverless-http');
 const path = require('path');
-const dotenv = require('dotenv');
 const moduleAlias = require('module-alias');
-
-// Pre-require core dependencies for NFT tracing
-require('express');
-require('reflect-metadata');
-require('typeorm');
-require('typedi');
-require('pg');
-require('body-parser');
-require('cors');
-require('helmet');
-require('class-transformer');
-require('class-validator');
-require('routing-controllers');
-require('jsonwebtoken');
-require('bcrypt');
 
 // Set up environment for serverless
 process.env.NODE_ENV = process.env.NODE_ENV || 'production';
