@@ -1,15 +1,37 @@
-// Netlify serverless function with Express
+// Netlify serverless function - Full Express App Integration
+const path = require('path');
+const Module = require('module');
+
+// Set environment flags FIRST
+process.env.NETLIFY = 'true';
+process.env.NODE_ENV = process.env.NODE_ENV || 'production';
+
+// Setup paths
+const functionsDir = __dirname;
+const rootDir = path.resolve(functionsDir, '../..');
+const distDir = path.join(rootDir, 'dist');
+
+// Pre-require all core dependencies that the app needs
+// This ensures they're available before the app loads
+require('reflect-metadata');
+
+// Setup module aliases for @base and @api paths
+const moduleAlias = require('module-alias');
+moduleAlias.addAliases({
+  '@base': distDir,
+  '@api': path.join(distDir, 'api')
+});
+
+// Now load the serverless wrapper
 const serverless = require('serverless-http');
+
+// Import dependencies needed by the app
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-
-// Set environment flags
-process.env.NETLIFY = 'true';
-process.env.NODE_ENV = process.env.NODE_ENV || 'production';
 
 // Database connection pool (lazy initialized)
 let pool = null;
