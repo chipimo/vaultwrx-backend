@@ -189,6 +189,18 @@ export class Customer {
   @OneToMany(() => AuditLog, auditLog => auditLog.customer)
   auditLogs: AuditLog[];
 
+  // Payments relationship (returns orders with payment info for now)
+  @Field(() => [Order], { nullable: true })
+  get payments(): Order[] {
+    return this.orders?.filter(order => order.paymentStatus === 'paid') || [];
+  }
+
+  // Invoices relationship (returns orders with invoice info for now)
+  @Field(() => [Order], { nullable: true })
+  get invoices(): Order[] {
+    return this.orders?.filter(order => order.invoiceNumber) || [];
+  }
+
   // Timestamps
   @Field()
   @CreateDateColumn({ name: 'created_at' })

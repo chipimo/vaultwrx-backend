@@ -200,7 +200,7 @@ export class LoginService {
 
       // Remove password before returning
       const { password, ...employeeWithoutPassword } = employee;
-      employeeWithoutPassword.employeeId = employee.id;
+      (employeeWithoutPassword as any).employeeId = employee.id;
 
       // Sign a JWT with a payload containing key employee details.
       return this.authService.sign(

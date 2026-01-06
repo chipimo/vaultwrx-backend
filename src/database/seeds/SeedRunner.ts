@@ -1,8 +1,10 @@
-import { DataSource } from 'typeorm';
+import { Connection, createConnection } from 'typeorm';
 import { UserSeeds } from './UserSeeds';
 
 export class SeedRunner {
-  constructor(private dataSource: DataSource) {}
+  private connection: Connection | null = null;
+
+  constructor(private connectionOptions?: any) {}
 
   public async runAllSeeds(): Promise<void> {
     console.log('🚀 Starting database seeding process...');
@@ -10,13 +12,11 @@ export class SeedRunner {
 
     try {
       // Initialize database connection
-      if (!this.dataSource.isInitialized) {
-        await this.dataSource.initialize();
-        console.log('✅ Database connection initialized');
-      }
+      this.connection = await createConnection(this.connectionOptions);
+      console.log('✅ Database connection initialized');
 
       // Run user system seeds
-      const userSeeds = new UserSeeds(this.dataSource);
+      const userSeeds = new UserSeeds(this.connection);
       await userSeeds.seed();
 
       console.log('=====================================');
@@ -28,8 +28,8 @@ export class SeedRunner {
       throw error;
     } finally {
       // Close database connection
-      if (this.dataSource.isInitialized) {
-        await this.dataSource.destroy();
+      if (this.connection && this.connection.isConnected) {
+        await this.connection.close();
         console.log('🔌 Database connection closed');
       }
     }
@@ -39,11 +39,9 @@ export class SeedRunner {
     console.log('🚀 Starting user system seeding...');
     
     try {
-      if (!this.dataSource.isInitialized) {
-        await this.dataSource.initialize();
-      }
+      this.connection = await createConnection(this.connectionOptions);
 
-      const userSeeds = new UserSeeds(this.dataSource);
+      const userSeeds = new UserSeeds(this.connection);
       await userSeeds.seed();
 
       console.log('✅ User system seeding completed!');
@@ -51,8 +49,8 @@ export class SeedRunner {
       console.error('❌ Error during user seeding:', error);
       throw error;
     } finally {
-      if (this.dataSource.isInitialized) {
-        await this.dataSource.destroy();
+      if (this.connection && this.connection.isConnected) {
+        await this.connection.close();
       }
     }
   }

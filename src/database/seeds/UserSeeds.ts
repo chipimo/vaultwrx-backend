@@ -1,4 +1,4 @@
-import { DataSource } from 'typeorm';
+import { Connection } from 'typeorm';
 import { User, UserType, UserStatus, AuthProvider } from '@base/api/models/Auth/User';
 import { UserProfile, ProfileType } from '@base/api/models/Auth/UserProfile';
 import { Customer, CustomerStatus, CustomerType } from '@base/api/models/Store-employee-management/Customer';
@@ -6,9 +6,10 @@ import { Staff, StaffStatus, StaffPosition } from '@base/api/models/Store-employ
 import { AuditLog, AuditActionType, AuditResourceType } from '@base/api/models/Security-access-control/AuditLog';
 import { Role, RoleType } from '@base/api/models/Store-employee-management/Role';
 import { UserRole } from '@base/api/models/Store-employee-management/UserRole';
+import { Retailer, RetailerStatus, BusinessType, PaymentFrequency } from '@base/api/models/Company/Retailer';
 
 export class UserSeeds {
-  constructor(private dataSource: DataSource) {}
+  constructor(private dataSource: Connection) {}
 
   public async seed(): Promise<void> {
     console.log('🌱 Starting User System Seeds...');
@@ -45,7 +46,18 @@ export class UserSeeds {
     
     const roleRepository = this.dataSource.getRepository(Role);
     
-    const roles = [
+    const roles: Array<{
+      name: string;
+      displayName: string;
+      description: string;
+      roleType: RoleType;
+      isActive: boolean;
+      isSystemRole: boolean;
+      priority: number;
+      companyId: string | null;
+      createdBy: string;
+      updatedBy: string;
+    }> = [
       {
         name: 'voteworks_super_admin',
         displayName: 'VoteWorks Super Admin',
@@ -305,7 +317,7 @@ export class UserSeeds {
         cellPhone: '+1-555-0100',
         fax: '+1-555-0101',
         status: RetailerStatus.ACTIVE,
-        businessType: BusinessType.FUNERAL_HOME,
+        businessType: BusinessType.RETAIL,
         businessLicense: 'FH-2024-001',
         taxId: '12-3456789',
         website: 'https://peacefulgardens.com',

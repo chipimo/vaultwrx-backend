@@ -15,6 +15,14 @@ export enum ProductType {
   BULK_PRECAST = 'bulk_precast'
 }
 
+// Enum for item types
+export enum ItemType {
+  PRODUCT = 'product',
+  SERVICE = 'service',
+  PACKAGE = 'package',
+  CUSTOM = 'custom'
+}
+
 // Enum for engraving position
 export enum EngravingPosition {
   TOP = 'top',

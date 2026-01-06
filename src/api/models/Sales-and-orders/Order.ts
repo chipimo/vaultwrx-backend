@@ -27,6 +27,24 @@ export enum ServiceType {
   GRAVESIDE = 'graveside'
 }
 
+// Enum for order types
+export enum OrderType {
+  STANDARD = 'standard',
+  RUSH = 'rush',
+  SCHEDULED = 'scheduled',
+  RECURRING = 'recurring'
+}
+
+// Enum for delivery methods
+export enum DeliveryMethod {
+  PICKUP = 'pickup',
+  DELIVERY = 'delivery',
+  SHIPPING = 'shipping'
+}
+
+// Re-export enums from OrderItem for convenience
+export { ProductType, Gender, CremationType, WitnessType, GraveType } from './OrderItem';
+
 @ObjectType()
 @Entity({ name: 'orders' })
 export class Order {
@@ -63,6 +81,15 @@ export class Order {
     default: OrderStatus.DRAFT
   })
   status: OrderStatus;
+
+  // Payment information
+  @Field({ nullable: true })
+  @Column({ name: 'payment_status', nullable: true, default: 'pending' })
+  paymentStatus: string;
+
+  @Field({ nullable: true })
+  @Column({ name: 'invoice_number', nullable: true })
+  invoiceNumber: string;
 
   // Financial information
   @Field()

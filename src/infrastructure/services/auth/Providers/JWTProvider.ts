@@ -11,4 +11,12 @@ export class JWTProvider {
       expires_in: authConfig.providers.jwt.expiresIn,
     };
   }
+
+  public verify(token: string): any {
+    try {
+      return jwt.verify(token, authConfig.providers.jwt.secret);
+    } catch (error) {
+      return null;
+    }
+  }
 }

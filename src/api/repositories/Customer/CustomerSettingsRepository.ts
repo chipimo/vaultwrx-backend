@@ -1,13 +1,14 @@
-// repositories/CustomerSettingsRepository.ts
-import { EntityRepository } from 'typeorm';
-import { RepositoryBase } from '@base/infrastructure/abstracts/RepositoryBase';
+import { EntityRepository, Repository } from 'typeorm';
 import { CustomerSettings } from '@base/api/models/Store-employee-management/CustomerSettings';
 
 @EntityRepository(CustomerSettings)
-export class CustomerSettingsRepository extends RepositoryBase<CustomerSettings> {
-  public async createSettings(data: Partial<CustomerSettings>): Promise<CustomerSettings> {
-    const settings = new CustomerSettings();
-    Object.assign(settings, data);
-    return await this.save(settings);
+export class CustomerSettingsRepository extends Repository<CustomerSettings> {
+  public async createCustomerSettings(data: Partial<CustomerSettings>): Promise<CustomerSettings> {
+    const entity = this.create(data);
+    return await this.save(entity);
+  }
+
+  public async findByCustomerId(customerId: string): Promise<CustomerSettings[]> {
+    return await this.find({ where: { customerId } });
   }
 }

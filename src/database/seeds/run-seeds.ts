@@ -1,15 +1,14 @@
 #!/usr/bin/env ts-node
 
-import { DataSource } from 'typeorm';
 import { SeedRunner } from './SeedRunner';
 import { config } from 'dotenv';
 
 // Load environment variables
 config();
 
-// Database configuration
-const dataSource = new DataSource({
-  type: 'postgres',
+// Database configuration for TypeORM 0.2.x
+const connectionOptions = {
+  type: 'postgres' as const,
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '5432'),
   username: process.env.DB_USERNAME || 'postgres',
@@ -19,8 +18,8 @@ const dataSource = new DataSource({
     'src/api/models/**/*.ts'
   ],
   synchronize: false, // Don't auto-sync in production
-  logging: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error']
-});
+  logging: process.env.NODE_ENV === 'development' ? ['error', 'warn'] as const : ['error'] as const
+};
 
 async function main() {
   const args = process.argv.slice(2);
@@ -31,7 +30,7 @@ async function main() {
   console.log('Database:', process.env.DB_NAME || 'vaultwrx');
   console.log('=====================================');
 
-  const seedRunner = new SeedRunner(dataSource);
+  const seedRunner = new SeedRunner(connectionOptions);
 
   try {
     switch (command) {
@@ -56,17 +55,11 @@ async function main() {
 // Handle graceful shutdown
 process.on('SIGINT', async () => {
   console.log('\n🛑 Received SIGINT, shutting down gracefully...');
-  if (dataSource.isInitialized) {
-    await dataSource.destroy();
-  }
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
   console.log('\n🛑 Received SIGTERM, shutting down gracefully...');
-  if (dataSource.isInitialized) {
-    await dataSource.destroy();
-  }
   process.exit(0);
 });
 

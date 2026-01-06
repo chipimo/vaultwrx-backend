@@ -61,6 +61,8 @@ export enum AuditResourceType {
   SUBSCRIPTION = 'SUBSCRIPTION',
   NOTIFICATION = 'NOTIFICATION',
   SYSTEM = 'SYSTEM',
+  USER = 'USER',
+  RETAILER = 'RETAILER',
 }
 
 @ObjectType()

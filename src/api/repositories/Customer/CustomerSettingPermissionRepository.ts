@@ -1,13 +1,14 @@
-// repositories/CustomerSettingPermissionRepository.ts
-import { EntityRepository } from 'typeorm';
-import { RepositoryBase } from '@base/infrastructure/abstracts/RepositoryBase';
+import { EntityRepository, Repository } from 'typeorm';
 import { CustomerSettingPermission } from '@base/api/models/Store-employee-management/CustomerSettingPermission';
 
 @EntityRepository(CustomerSettingPermission)
-export class CustomerSettingPermissionRepository extends RepositoryBase<CustomerSettingPermission> {
-  public async createPermission(data: Partial<CustomerSettingPermission>): Promise<CustomerSettingPermission> {
-    const permission = new CustomerSettingPermission();
-    Object.assign(permission, data);
-    return await this.save(permission);
+export class CustomerSettingPermissionRepository extends Repository<CustomerSettingPermission> {
+  public async createCustomerSettingPermission(data: Partial<CustomerSettingPermission>): Promise<CustomerSettingPermission> {
+    const entity = this.create(data);
+    return await this.save(entity);
+  }
+
+  public async findByCustomerId(customerId: string): Promise<CustomerSettingPermission[]> {
+    return await this.find({ where: { customerId } });
   }
 }

@@ -171,7 +171,7 @@ export class AuditLogService {
       [AuditActionType.SYSTEM_ACTION]: 'performed system action',
     };
 
-    const resourceMap = {
+    const resourceMap: { [key: string]: string } = {
       [AuditResourceType.BUDGET_ENTRY]: 'budget entry',
       [AuditResourceType.BUDGET_CATEGORY]: 'budget category',
       [AuditResourceType.BUDGET_ALLOCATION]: 'budget allocation',
@@ -198,6 +198,8 @@ export class AuditLogService {
       [AuditResourceType.SUBSCRIPTION]: 'subscription',
       [AuditResourceType.NOTIFICATION]: 'notification',
       [AuditResourceType.SYSTEM]: 'system',
+      [AuditResourceType.USER]: 'user',
+      [AuditResourceType.RETAILER]: 'retailer',
     };
 
     const action = actionMap[auditLog.action] || auditLog.action.toLowerCase();

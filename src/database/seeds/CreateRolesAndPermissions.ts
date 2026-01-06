@@ -1,13 +1,9 @@
-import { Seeder, SeederFactoryManager } from 'typeorm-extension';
-import { DataSource } from 'typeorm';
+import { Connection } from 'typeorm';
 import { PermissionService } from '@base/api/services/Security/PermissionService';
 import { Container } from 'typedi';
 
-export class CreateRolesAndPermissions implements Seeder {
-  public async run(
-    dataSource: DataSource,
-    factoryManager: SeederFactoryManager
-  ): Promise<any> {
+export class CreateRolesAndPermissions {
+  public async run(connection: Connection): Promise<any> {
     const permissionService = Container.get(PermissionService);
     
     // Create default roles and permissions for VoteWorks
