@@ -169,46 +169,73 @@ export class App {
   }
 
   private setupSwagger() {
-    // Parse class-validator classes into JSON Schema
-    const schemas = validationMetadatasToSchemas({
-      refPointerPrefix: '#/components/schemas/',
-    });
+    // Skip Swagger in serverless mode (not needed in production and causes issues)
+    if (process.env.NETLIFY === 'true') {
+      console.log('⚡ Running in serverless mode - skipping Swagger setup');
+      // Provide a simple response for /docs endpoint
+      this.app.get('/docs', (req, res) => {
+        res.json({
+          message: 'API Documentation is not available in serverless mode',
+          tip: 'Run the server locally to access Swagger UI',
+        });
+      });
+      return;
+    }
 
-    // Parse routing-controllers classes into OpenAPI spec:
-    const storage = getMetadataArgsStorage();
-    const spec = routingControllersToSpec(
-      storage,
-      { routePrefix: appConfig.routePrefix },
-      {
-        components: {
-          schemas,
-          securitySchemes: { 
-            bearerAuth: { 
-              type: 'http',
-              scheme: 'bearer',
-              bearerFormat: 'JWT',
+    try {
+      // Parse class-validator classes into JSON Schema
+      const schemas = validationMetadatasToSchemas({
+        refPointerPrefix: '#/components/schemas/',
+      });
+
+      // Parse routing-controllers classes into OpenAPI spec:
+      const storage = getMetadataArgsStorage();
+      const spec = routingControllersToSpec(
+        storage,
+        { routePrefix: appConfig.routePrefix },
+        {
+          components: {
+            schemas,
+            securitySchemes: { 
+              bearerAuth: { 
+                type: 'http',
+                scheme: 'bearer',
+                bearerFormat: 'JWT',
+              },
+            },
+          },
+          info: {
+            description: 'Welcome to the club!',
+            title: 'API Documentation',
+            version: '1.0.0',
+            contact: {
+              name: 'Vaultwrx',
+              url: 'https://vaultwrx.com',
+              email: 'dev@vaultwrx.com',
             },
           },
         },
-        info: {
-          description: 'Welcome to the club!',
-          title: 'API Documentation',
-          version: '1.0.0',
-          contact: {
-            name: 'Vaultwrx',
-            url: 'https://vaultwrx.com',
-            email: 'dev@vaultwrx.com',
-          },
-        },
-      },
-    );
+      );
 
-    // Use Swagger
-    this.app.use('/docs', swaggerUiExpress.serve, swaggerUiExpress.setup(spec));
+      // Use Swagger
+      this.app.use('/docs', swaggerUiExpress.serve, swaggerUiExpress.setup(spec));
+    } catch (error) {
+      console.error('Failed to setup Swagger:', error);
+      this.app.get('/docs', (req, res) => {
+        res.status(500).json({
+          message: 'Failed to initialize API documentation',
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      });
+    }
   }
 
   private async setupGraphQL() {
-    if (!appConfig.graphqlEnabled) {
+    // Skip GraphQL in serverless mode (can cause issues)
+    if (!appConfig.graphqlEnabled || process.env.NETLIFY === 'true') {
+      if (process.env.NETLIFY === 'true') {
+        console.log('⚡ Running in serverless mode - skipping GraphQL setup');
+      }
       return false;
     }
 
