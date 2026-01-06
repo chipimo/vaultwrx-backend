@@ -48,16 +48,16 @@ export class GeocodingService {
    * Search for locations based on a query string (autocomplete/suggestions)
    * @param query - The search query
    * @param limit - Maximum number of results (default: 5, max: 10)
-   * @param countryCode - Country code to limit results (default: 'US')
+   * @param countryCode - Optional country code to limit results (e.g., 'us')
    */
   public async searchLocations(
     query: string,
     limit: number = 5,
-    countryCode: string = 'US'
+    countryCode?: string
   ): Promise<LocationSuggestion[]> {
     if (!query || query.trim().length < 2) {
       return [];
-    } 
+    }
 
     const params = new URLSearchParams({
       q: query.trim(),

@@ -65,4 +65,3 @@ const allEntities = [
 ].filter((entity) => entity != null && typeof entity === 'function');
 
 export const entities = allEntities;
-
