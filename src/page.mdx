@@ -1,0 +1,948 @@
+export const metadata = {
+  title: 'Database Schema & Migrations',
+  description:
+    'An overview of the VaultWRX database structure, including key tables, what they do, and how they relate to each other. Learn how to run migrations and understand the schema relationships.',
+}
+
+# Database Schema & Migrations
+
+VaultWRX uses a relational PostgreSQL schema to power its funeral service ordering platform. This schema supports order creation, product management, user roles, scheduling, survey tracking, and more. Below is a breakdown of key tables and how they relate.
+
+<Note>
+  Before running migrations, ensure PostgreSQL is running and the `DATABASE_URL` environment variable is set. Use the provided migration scripts in your backend repo.
+</Note>
+
+## Core Tables
+
+### `users`
+Stores user profiles and login credentials. Related to `orders`, `photos`, `tasks`, and permissions tables.
+
+### `retailers`
+Represents businesses offering funeral products and services. Related to `orders`, `products`, `staff`, and `invoices`.
+
+### `customers`
+End clients placing or associated with orders. Linked to `orders`, `staff`, and invoices.
+
+### `staff`
+Chapel staff or directors. Associated with orders (as directors or processors), survey handlers, and delivery schedules.
+
+### `orders`
+Main entity representing a funeral service order. Connects to customers, staff, products, delivery, and extras.
+
+### `orderItems`
+Linked to orders; supports multiple items per order (vaults, urns, caskets, etc.) with delivery customization.
+
+### `deceased`
+Details of the deceased individual linked to an order.
+
+### `deliverySchedules`
+Defines logistics per item (orderItem) including cemetery, plot, and delivery times.
+
+## Product & Pricing Tables
+
+### `products`
+Items like vaults, caskets, etc. Related to `orderItems`, `productHistory`.
+
+### `productHistory`
+Tracks inventory or stock updates for products.
+
+### `serviceType` / `serviceExtras`
+Additional pricing options and bundles related to a retailer.
+
+### `orderExtraCharges`
+Special fees per order such as platform fees, on-account charges, etc.
+
+## Invoicing & Payments
+
+### `invoices`
+Issued documents per order and retailer, with status, total, and path to PDF.
+
+### `statements`
+Monthly or period-based summaries for each retailer.
+
+### `retailer_transaction_logs`
+Logs of financial transactions related to retailers.
+
+### `order_transaction_logs`
+Logs of transactions per individual order.
+
+## Operational Tables
+
+### `tasks`
+Automated or manual scheduled actions tied to users or orders.
+
+### `surveys` / `surveyQuestions`
+Post-service feedback linked to orders, users, and staff.
+
+### `logs`
+Generic system logs for tracking errors, operations, etc.
+
+### `notifications`
+System- or user-generated messages (e.g., new orders, updates).
+
+### `updates`
+Version updates or announcements.
+
+### `ui_settings`
+User preferences such as theme or language.
+
+## Security & Access
+
+### `permissions`
+Defines permission levels (e.g., LIMITED, ADMIN) assigned via `userPermissions`.
+
+### `userPermissions`
+Junction table connecting users to permission roles.
+
+### `users_retailers`
+Connects users with specific retailers (many-to-many).
+
+## Configuration Tables
+
+### `colors`
+Used for visual cues in products or display settings.
+
+### `holidayOptions`
+Retailer-specific holidays affecting pricing or scheduling.
+
+## Bb schema and Tables
+
+dbdiagram.io layout
+
+```bash
+Table logs {
+  id varchar [pk]
+  type varchar
+  message text
+  createdAt datetime
+}
+
+Table notifications {
+  id varchar [pk]
+  userId varchar
+  message text
+  read boolean
+  createdAt datetime
+}
+
+Table order_transaction_logs {
+  id varchar [pk]
+  orderId varchar
+  transactionType varchar
+  amount decimal
+  timestamp datetime
+}
+
+Table orders {
+  id varchar [pk]
+  userId varchar
+  status varchar
+  total decimal
+  retailerId varchar
+  customerId varchar
+  directorId varchar
+  staffId varchar
+  productId varchar
+  displayColorId varchar
+  contact varchar
+  email varchar
+  cellPhone varchar
+  name varchar
+  location varchar
+  dateOfService date
+  timeOfService time
+  arrivalTime time
+  birthDate date
+  deathDate date
+  cemetery varchar
+  isDeleted boolean
+  isEdited boolean
+  isParent boolean
+  delivered boolean
+  confirmed boolean
+  newOrderNotificationsSent boolean
+  comments text
+  deliveryInstructions text
+  orderDStatus varchar
+  productPaintColorOptions varchar
+  emblem varchar
+  serviceExtras text
+  discount decimal
+  salesTax decimal
+  applyPlatformFee boolean
+  serviceTypeName varchar
+  serviceTypePrice decimal
+  image text
+  updatedAt timestamp
+  storeName varchar
+  storeAddress1 varchar
+  storeAddress2 varchar
+  storeCity varchar
+  storeState varchar
+  storeZip varchar
+  createdAt datetime
+}
+
+Table orderItems {
+  id varchar [pk]
+  orderId varchar
+  productId varchar
+  productType varchar
+  quantity int
+  customization text
+  engraving text
+  engravingPosition varchar
+  engravingFont varchar
+  engravingColor varchar
+  theme varchar
+  deliverBy date
+  deliveryTime time
+  deliveryLocation varchar
+  comments text
+}
+
+Table deceased {
+  id varchar [pk]
+  orderId varchar
+  name varchar
+  birthDate date
+  deathDate date
+}
+
+Table deliverySchedules {
+  id varchar [pk]
+  orderItemId varchar
+  cemetery varchar
+  section varchar
+  plotNumber varchar
+  graveType varchar
+  deliveryDate date
+  deliveryTime time
+  arrivalAtGraveside time
+  assignedStaffId varchar
+  status varchar
+}
+
+Table pastOrders {
+  id varchar [pk]
+  userId varchar
+  retailerId varchar
+  archivedAt datetime
+}
+
+Table permissions {
+  id varchar [pk]
+  userId varchar
+  role varchar
+  accessLevel varchar
+}
+
+Table photos {
+  id varchar [pk]
+  userId varchar
+  url text
+  type varchar
+  size number
+  createdAt datetime
+}
+
+Table products {
+  id varchar [pk]
+  retailerId varchar
+  name varchar
+  type varchar
+  price decimal
+  category varchar
+  quantity int
+  image text
+  imageName varchar
+  history text
+}
+
+Table retailer_transaction_logs {
+  id varchar [pk]
+  retailerId varchar
+  transactionType varchar
+  amount decimal
+  timestamp datetime
+}
+
+Table retailers {
+  id varchar [pk]
+  name varchar
+  email varchar
+  cellPhone varchar
+  fax varchar
+  isDeleted boolean
+  disabledDates text
+  paymentFrequency varchar
+  saturdayCharge decimal
+  sundayCharge decimal
+  holidayCharge decimal
+  platformFeeCustomer boolean
+  platformFeeAmount decimal
+  creditCardFee decimal
+  achFee decimal
+  onAccountFee decimal
+}
+
+Table ui_settings {
+  id varchar [pk]
+  userId varchar
+  theme varchar
+  language varchar
+}
+
+Table updates {
+  id varchar [pk]
+  message text
+  version varchar
+  date datetime
+}
+
+Table users {
+  id varchar [pk]
+  name varchar
+  email varchar
+  phone varchar
+  registeredAt datetime
+}
+
+Table users_retailers {
+  id varchar [pk]
+  userId varchar
+  retailerId varchar
+  role varchar
+}
+
+Table invoices {
+  id varchar [pk]
+  invoiceNumber varchar
+  orderId varchar
+  userId varchar
+  retailerId varchar
+  amount decimal
+  tax decimal
+  total decimal
+  issuedAt datetime
+  dueDate datetime
+  status varchar 
+  customerRefPath varchar
+  date varchar
+  path text
+}
+
+Table holidayOptions {
+  id varchar [pk]
+  retailerId varchar
+  holidayName varchar
+  holidayDate date
+  active boolean
+}
+
+Table statements {
+  id varchar [pk]
+  retailerId varchar
+  date varchar
+  path text
+}
+
+Table serviceExtras {
+  id varchar [pk]
+  retailerId varchar
+  name varchar
+  price decimal
+}
+
+Table serviceType {
+  id varchar [pk]
+  retailerId varchar
+  name varchar
+  price decimal
+}
+
+Table productHistory {
+  id varchar [pk]
+  productId varchar
+  quantityAdded int
+  updatedAt timestamp
+}
+
+Table userPermissions {
+  id varchar [pk]
+  userId varchar
+  permissionId varchar
+}
+
+Table orderExtraCharges {
+  id varchar [pk]
+  orderId varchar
+  name varchar
+  price decimal
+  deliveredQuantity int
+}
+
+Table colors {
+  id varchar [pk]
+  hexCode varchar
+}
+
+Table customers {
+  id varchar [pk] 
+  name varchar
+  email varchar
+  addressLine1 varchar
+  addressLine2 varchar
+  city varchar
+  state varchar
+  zip varchar
+  paymentMethod varchar 
+  isDeleted boolean
+  hidePrice boolean
+  surveyEmailEnabled boolean
+  surveyTextEnabled boolean
+  surveyDisabled boolean
+}
+
+Table staff {
+  id varchar [pk]
+  retailerId varchar
+  customerId varchar
+  position varchar
+  name varchar
+  email varchar
+  cellPhone varchar
+  enableSurvey boolean
+  isDeleted boolean
+  updatesSubscribed boolean
+  updatesNotificationType varchar
+}
+
+Table surveys {
+  id varchar [pk]
+  formId varchar
+  userId varchar
+  retailerId varchar
+  orderId varchar
+  staffId varchar
+  responded boolean
+  createdAt timestamp
+}
+
+Table surveyQuestions {
+  id varchar [pk]
+  surveyId varchar
+  questionId varchar
+  question text
+}
+
+Table tasks {
+  id varchar [pk]
+  userId varchar
+  description text
+  dueDate datetime
+  orderId varchar       
+  performAt timestamp
+  worker varchar        
+  status varchar    
+}
+
+Ref: orders.userId > users.id
+Ref: orders.customerId > customers.id
+Ref: orders.directorId > staff.id
+Ref: orders.staffId > staff.id
+Ref: orders.productId > products.id
+Ref: orders.displayColorId > colors.id
+Ref: orders.retailerId > retailers.id
+
+Ref: orderItems.orderId > orders.id
+Ref: orderItems.productId > products.id
+
+Ref: deceased.orderId > orders.id
+
+Ref: deliverySchedules.orderItemId > orderItems.id
+Ref: deliverySchedules.assignedStaffId > staff.id
+
+Ref: orderExtraCharges.orderId > orders.id
+
+Ref: order_transaction_logs.orderId > orders.id
+Ref: invoices.orderId > orders.id
+Ref: invoices.userId > users.id
+Ref: invoices.retailerId > retailers.id
+
+Ref: pastOrders.userId > users.id
+Ref: pastOrders.retailerId > retailers.id
+
+Ref: permissions.userId > users.id
+Ref: userPermissions.userId > users.id
+Ref: userPermissions.permissionId > permissions.id
+
+Ref: photos.userId > users.id
+Ref: productHistory.productId > products.id
+Ref: products.retailerId > retailers.id
+Ref: retailer_transaction_logs.retailerId > retailers.id
+
+Ref: serviceType.retailerId > retailers.id
+Ref: serviceExtras.retailerId > retailers.id
+Ref: statements.retailerId > retailers.id
+Ref: holidayOptions.retailerId > retailers.id
+
+Ref: staff.retailerId > retailers.id
+Ref: staff.customerId > customers.id
+
+Ref: surveys.userId > users.id
+Ref: surveys.retailerId > retailers.id
+Ref: surveys.orderId > orders.id
+Ref: surveys.staffId > staff.id
+Ref: surveyQuestions.surveyId > surveys.id
+
+Ref: tasks.userId > users.id
+Ref: tasks.orderId > orders.id
+Ref: ui_settings.userId > users.id
+Ref: users_retailers.userId > users.id
+Ref: users_retailers.retailerId > retailers.id
+```
+
+## Pg sql schema
+
+```bash
+CREATE TABLE "logs" (
+  "id" varchar PRIMARY KEY,
+  "type" varchar,
+  "message" text,
+  "createdAt" datetime
+);
+
+CREATE TABLE "notifications" (
+  "id" varchar PRIMARY KEY,
+  "userId" varchar,
+  "message" text,
+  "read" boolean,
+  "createdAt" datetime
+);
+
+CREATE TABLE "order_transaction_logs" (
+  "id" varchar PRIMARY KEY,
+  "orderId" varchar,
+  "transactionType" varchar,
+  "amount" decimal,
+  "timestamp" datetime
+);
+
+CREATE TABLE "orders" (
+  "id" varchar PRIMARY KEY,
+  "userId" varchar,
+  "status" varchar,
+  "total" decimal,
+  "retailerId" varchar,
+  "customerId" varchar,
+  "directorId" varchar,
+  "staffId" varchar,
+  "productId" varchar,
+  "displayColorId" varchar,
+  "contact" varchar,
+  "email" varchar,
+  "cellPhone" varchar,
+  "name" varchar,
+  "location" varchar,
+  "dateOfService" date,
+  "timeOfService" time,
+  "arrivalTime" time,
+  "birthDate" date,
+  "deathDate" date,
+  "cemetery" varchar,
+  "isDeleted" boolean,
+  "isEdited" boolean,
+  "isParent" boolean,
+  "delivered" boolean,
+  "confirmed" boolean,
+  "newOrderNotificationsSent" boolean,
+  "comments" text,
+  "deliveryInstructions" text,
+  "orderDStatus" varchar,
+  "productPaintColorOptions" varchar,
+  "emblem" varchar,
+  "serviceExtras" text,
+  "discount" decimal,
+  "salesTax" decimal,
+  "applyPlatformFee" boolean,
+  "serviceTypeName" varchar,
+  "serviceTypePrice" decimal,
+  "image" text,
+  "updatedAt" timestamp,
+  "storeName" varchar,
+  "storeAddress1" varchar,
+  "storeAddress2" varchar,
+  "storeCity" varchar,
+  "storeState" varchar,
+  "storeZip" varchar,
+  "createdAt" datetime
+);
+
+CREATE TABLE "orderItems" (
+  "id" varchar PRIMARY KEY,
+  "orderId" varchar,
+  "productId" varchar,
+  "productType" varchar,
+  "quantity" int,
+  "customization" text,
+  "engraving" text,
+  "engravingPosition" varchar,
+  "engravingFont" varchar,
+  "engravingColor" varchar,
+  "theme" varchar,
+  "deliverBy" date,
+  "deliveryTime" time,
+  "deliveryLocation" varchar,
+  "comments" text
+);
+
+CREATE TABLE "deceased" (
+  "id" varchar PRIMARY KEY,
+  "orderId" varchar,
+  "name" varchar,
+  "birthDate" date,
+  "deathDate" date
+);
+
+CREATE TABLE "deliverySchedules" (
+  "id" varchar PRIMARY KEY,
+  "orderItemId" varchar,
+  "cemetery" varchar,
+  "section" varchar,
+  "plotNumber" varchar,
+  "graveType" varchar,
+  "deliveryDate" date,
+  "deliveryTime" time,
+  "arrivalAtGraveside" time,
+  "assignedStaffId" varchar,
+  "status" varchar
+);
+
+CREATE TABLE "pastOrders" (
+  "id" varchar PRIMARY KEY,
+  "userId" varchar,
+  "retailerId" varchar,
+  "archivedAt" datetime
+);
+
+CREATE TABLE "permissions" (
+  "id" varchar PRIMARY KEY,
+  "userId" varchar,
+  "role" varchar,
+  "accessLevel" varchar
+);
+
+CREATE TABLE "photos" (
+  "id" varchar PRIMARY KEY,
+  "userId" varchar,
+  "url" text,
+  "type" varchar,
+  "size" number,
+  "createdAt" datetime
+);
+
+CREATE TABLE "products" (
+  "id" varchar PRIMARY KEY,
+  "retailerId" varchar,
+  "name" varchar,
+  "type" varchar,
+  "price" decimal,
+  "category" varchar,
+  "quantity" int,
+  "image" text,
+  "imageName" varchar,
+  "history" text
+);
+
+CREATE TABLE "retailer_transaction_logs" (
+  "id" varchar PRIMARY KEY,
+  "retailerId" varchar,
+  "transactionType" varchar,
+  "amount" decimal,
+  "timestamp" datetime
+);
+
+CREATE TABLE "retailers" (
+  "id" varchar PRIMARY KEY,
+  "name" varchar,
+  "email" varchar,
+  "cellPhone" varchar,
+  "fax" varchar,
+  "isDeleted" boolean,
+  "disabledDates" text,
+  "paymentFrequency" varchar,
+  "saturdayCharge" decimal,
+  "sundayCharge" decimal,
+  "holidayCharge" decimal,
+  "platformFeeCustomer" boolean,
+  "platformFeeAmount" decimal,
+  "creditCardFee" decimal,
+  "achFee" decimal,
+  "onAccountFee" decimal
+);
+
+CREATE TABLE "ui_settings" (
+  "id" varchar PRIMARY KEY,
+  "userId" varchar,
+  "theme" varchar,
+  "language" varchar
+);
+
+CREATE TABLE "updates" (
+  "id" varchar PRIMARY KEY,
+  "message" text,
+  "version" varchar,
+  "date" datetime
+);
+
+CREATE TABLE "users" (
+  "id" varchar PRIMARY KEY,
+  "name" varchar,
+  "email" varchar,
+  "phone" varchar,
+  "registeredAt" datetime
+);
+
+CREATE TABLE "users_retailers" (
+  "id" varchar PRIMARY KEY,
+  "userId" varchar,
+  "retailerId" varchar,
+  "role" varchar
+);
+
+CREATE TABLE "invoices" (
+  "id" varchar PRIMARY KEY,
+  "invoiceNumber" varchar,
+  "orderId" varchar,
+  "userId" varchar,
+  "retailerId" varchar,
+  "amount" decimal,
+  "tax" decimal,
+  "total" decimal,
+  "issuedAt" datetime,
+  "dueDate" datetime,
+  "status" varchar,
+  "customerRefPath" varchar,
+  "date" varchar,
+  "path" text
+);
+
+CREATE TABLE "holidayOptions" (
+  "id" varchar PRIMARY KEY,
+  "retailerId" varchar,
+  "holidayName" varchar,
+  "holidayDate" date,
+  "active" boolean
+);
+
+CREATE TABLE "statements" (
+  "id" varchar PRIMARY KEY,
+  "retailerId" varchar,
+  "date" varchar,
+  "path" text
+);
+
+CREATE TABLE "serviceExtras" (
+  "id" varchar PRIMARY KEY,
+  "retailerId" varchar,
+  "name" varchar,
+  "price" decimal
+);
+
+CREATE TABLE "serviceType" (
+  "id" varchar PRIMARY KEY,
+  "retailerId" varchar,
+  "name" varchar,
+  "price" decimal
+);
+
+CREATE TABLE "productHistory" (
+  "id" varchar PRIMARY KEY,
+  "productId" varchar,
+  "quantityAdded" int,
+  "updatedAt" timestamp
+);
+
+CREATE TABLE "userPermissions" (
+  "id" varchar PRIMARY KEY,
+  "userId" varchar,
+  "permissionId" varchar
+);
+
+CREATE TABLE "orderExtraCharges" (
+  "id" varchar PRIMARY KEY,
+  "orderId" varchar,
+  "name" varchar,
+  "price" decimal,
+  "deliveredQuantity" int
+);
+
+CREATE TABLE "colors" (
+  "id" varchar PRIMARY KEY,
+  "hexCode" varchar
+);
+
+CREATE TABLE "customers" (
+  "id" varchar PRIMARY KEY,
+  "name" varchar,
+  "email" varchar,
+  "addressLine1" varchar,
+  "addressLine2" varchar,
+  "city" varchar,
+  "state" varchar,
+  "zip" varchar,
+  "paymentMethod" varchar,
+  "isDeleted" boolean,
+  "hidePrice" boolean,
+  "surveyEmailEnabled" boolean,
+  "surveyTextEnabled" boolean,
+  "surveyDisabled" boolean
+);
+
+CREATE TABLE "staff" (
+  "id" varchar PRIMARY KEY,
+  "retailerId" varchar,
+  "customerId" varchar,
+  "position" varchar,
+  "name" varchar,
+  "email" varchar,
+  "cellPhone" varchar,
+  "enableSurvey" boolean,
+  "isDeleted" boolean,
+  "updatesSubscribed" boolean,
+  "updatesNotificationType" varchar
+);
+
+CREATE TABLE "surveys" (
+  "id" varchar PRIMARY KEY,
+  "formId" varchar,
+  "userId" varchar,
+  "retailerId" varchar,
+  "orderId" varchar,
+  "staffId" varchar,
+  "responded" boolean,
+  "createdAt" timestamp
+);
+
+CREATE TABLE "surveyQuestions" (
+  "id" varchar PRIMARY KEY,
+  "surveyId" varchar,
+  "questionId" varchar,
+  "question" text
+);
+
+CREATE TABLE "tasks" (
+  "id" varchar PRIMARY KEY,
+  "userId" varchar,
+  "description" text,
+  "dueDate" datetime,
+  "orderId" varchar,
+  "performAt" timestamp,
+  "worker" varchar,
+  "status" varchar
+);
+
+ALTER TABLE "orders" ADD FOREIGN KEY ("userId") REFERENCES "users" ("id");
+
+ALTER TABLE "orders" ADD FOREIGN KEY ("customerId") REFERENCES "customers" ("id");
+
+ALTER TABLE "orders" ADD FOREIGN KEY ("directorId") REFERENCES "staff" ("id");
+
+ALTER TABLE "orders" ADD FOREIGN KEY ("staffId") REFERENCES "staff" ("id");
+
+ALTER TABLE "orders" ADD FOREIGN KEY ("productId") REFERENCES "products" ("id");
+
+ALTER TABLE "orders" ADD FOREIGN KEY ("displayColorId") REFERENCES "colors" ("id");
+
+ALTER TABLE "orders" ADD FOREIGN KEY ("retailerId") REFERENCES "retailers" ("id");
+
+ALTER TABLE "orderItems" ADD FOREIGN KEY ("orderId") REFERENCES "orders" ("id");
+
+ALTER TABLE "orderItems" ADD FOREIGN KEY ("productId") REFERENCES "products" ("id");
+
+ALTER TABLE "deceased" ADD FOREIGN KEY ("orderId") REFERENCES "orders" ("id");
+
+ALTER TABLE "deliverySchedules" ADD FOREIGN KEY ("orderItemId") REFERENCES "orderItems" ("id");
+
+ALTER TABLE "deliverySchedules" ADD FOREIGN KEY ("assignedStaffId") REFERENCES "staff" ("id");
+
+ALTER TABLE "orderExtraCharges" ADD FOREIGN KEY ("orderId") REFERENCES "orders" ("id");
+
+ALTER TABLE "order_transaction_logs" ADD FOREIGN KEY ("orderId") REFERENCES "orders" ("id");
+
+ALTER TABLE "invoices" ADD FOREIGN KEY ("orderId") REFERENCES "orders" ("id");
+
+ALTER TABLE "invoices" ADD FOREIGN KEY ("userId") REFERENCES "users" ("id");
+
+ALTER TABLE "invoices" ADD FOREIGN KEY ("retailerId") REFERENCES "retailers" ("id");
+
+ALTER TABLE "pastOrders" ADD FOREIGN KEY ("userId") REFERENCES "users" ("id");
+
+ALTER TABLE "pastOrders" ADD FOREIGN KEY ("retailerId") REFERENCES "retailers" ("id");
+
+ALTER TABLE "permissions" ADD FOREIGN KEY ("userId") REFERENCES "users" ("id");
+
+ALTER TABLE "userPermissions" ADD FOREIGN KEY ("userId") REFERENCES "users" ("id");
+
+ALTER TABLE "userPermissions" ADD FOREIGN KEY ("permissionId") REFERENCES "permissions" ("id");
+
+ALTER TABLE "photos" ADD FOREIGN KEY ("userId") REFERENCES "users" ("id");
+
+ALTER TABLE "productHistory" ADD FOREIGN KEY ("productId") REFERENCES "products" ("id");
+
+ALTER TABLE "products" ADD FOREIGN KEY ("retailerId") REFERENCES "retailers" ("id");
+
+ALTER TABLE "retailer_transaction_logs" ADD FOREIGN KEY ("retailerId") REFERENCES "retailers" ("id");
+
+ALTER TABLE "serviceType" ADD FOREIGN KEY ("retailerId") REFERENCES "retailers" ("id");
+
+ALTER TABLE "serviceExtras" ADD FOREIGN KEY ("retailerId") REFERENCES "retailers" ("id");
+
+ALTER TABLE "statements" ADD FOREIGN KEY ("retailerId") REFERENCES "retailers" ("id");
+
+ALTER TABLE "holidayOptions" ADD FOREIGN KEY ("retailerId") REFERENCES "retailers" ("id");
+
+ALTER TABLE "staff" ADD FOREIGN KEY ("retailerId") REFERENCES "retailers" ("id");
+
+ALTER TABLE "staff" ADD FOREIGN KEY ("customerId") REFERENCES "customers" ("id");
+
+ALTER TABLE "surveys" ADD FOREIGN KEY ("userId") REFERENCES "users" ("id");
+
+ALTER TABLE "surveys" ADD FOREIGN KEY ("retailerId") REFERENCES "retailers" ("id");
+
+ALTER TABLE "surveys" ADD FOREIGN KEY ("orderId") REFERENCES "orders" ("id");
+
+ALTER TABLE "surveys" ADD FOREIGN KEY ("staffId") REFERENCES "staff" ("id");
+
+ALTER TABLE "surveyQuestions" ADD FOREIGN KEY ("surveyId") REFERENCES "surveys" ("id");
+
+ALTER TABLE "tasks" ADD FOREIGN KEY ("userId") REFERENCES "users" ("id");
+
+ALTER TABLE "tasks" ADD FOREIGN KEY ("orderId") REFERENCES "orders" ("id");
+
+ALTER TABLE "ui_settings" ADD FOREIGN KEY ("userId") REFERENCES "users" ("id");
+
+ALTER TABLE "users_retailers" ADD FOREIGN KEY ("userId") REFERENCES "users" ("id");
+
+ALTER TABLE "users_retailers" ADD FOREIGN KEY ("retailerId") REFERENCES "retailers" ("id");
+
+```
+
+```bash
+npm run migrate
+```
+
+To seed development data:
+
+```bash
+npm run seed
+```
+
+Be sure to review the migration files in the `/migrations` directory to track changes to the schema over time.
+
+<div className="not-prose">
+  <Button href="/schema-erd" variant="text" arrow="right">
+    <>View the full ERD visualization</>
+  </Button>
+</div>
