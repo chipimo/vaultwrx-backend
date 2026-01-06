@@ -32,11 +32,13 @@ import bodyParser from 'body-parser';
 import { dbConfig } from '@base/config/db';
 
 export class App {
-  private app: express.Application = express();
+  public app: express.Application = express();
   private port: Number = appConfig.port;
+  private initialized: boolean = false;
+  public initPromise: Promise<void>;
 
   public constructor() {
-    this.bootstrap();
+    this.initPromise = this.bootstrap();
   }
 
   public async bootstrap() {
@@ -94,7 +96,8 @@ export class App {
   }
 
   private registerCronJobs() {
-    if (!appConfig.cronJobsEnabled) {
+    // Skip cron jobs in serverless environment
+    if (!appConfig.cronJobsEnabled || process.env.NETLIFY === 'true') {
       return false;
     }
 
@@ -112,6 +115,12 @@ export class App {
   }
 
   private registerSocketControllers() {
+    // Skip socket server setup in serverless environment
+    if (process.env.NETLIFY === 'true') {
+      console.log('⚡ Running in serverless mode - skipping socket server');
+      return;
+    }
+
     const server = require('http').Server(this.app);
     const io = require('socket.io')(server);
 
@@ -220,4 +229,9 @@ export class App {
   }
 }
 
-new App();
+// Create app instance
+const appInstance = new App();
+
+// Export for Netlify serverless function
+export const app = appInstance.app;
+export const appReady = appInstance.initPromise;
