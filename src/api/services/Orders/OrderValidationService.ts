@@ -257,7 +257,7 @@ export class OrderValidationService {
 
     // Physical characteristics validation
     if (deceased.height && !this.isValidHeight(deceased.height)) {
-      warnings.push('Height format may be invalid. Use format like "5'10\"" or "180cm"');
+      warnings.push('Height format may be invalid. Use format like "5\'10" or "180cm"');
     }
 
     if (deceased.weight && !this.isValidWeight(deceased.weight)) {
