@@ -8,7 +8,7 @@ export enum Gender {
   FEMALE = 'female'
 }
 
-@ObjectType()
+@ObjectType('SalesDeceased')
 @Entity({ name: 'deceased' })
 export class Deceased {
   @Field()

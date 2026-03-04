@@ -14,7 +14,7 @@ export enum PhotoType {
   OTHER = 'other'
 }
 
-@ObjectType()
+@ObjectType('SalesPhoto')
 @Entity({ name: 'photos' })
 export class Photo {
   @Field()

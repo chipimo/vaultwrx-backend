@@ -45,7 +45,7 @@ export enum DeliveryMethod {
 // Re-export enums from OrderItem for convenience
 export { ProductType, Gender, CremationType, WitnessType, GraveType } from './OrderItem';
 
-@ObjectType()
+@ObjectType('SalesOrder')
 @Entity({ name: 'orders' })
 export class Order {
   @Field()

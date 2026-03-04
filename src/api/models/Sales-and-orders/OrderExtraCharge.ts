@@ -3,7 +3,7 @@ import { ObjectType, Field } from 'type-graphql';
 import { Order } from './Order';
 // Note: ServiceExtra model doesn't exist yet, using string reference for now
 
-@ObjectType()
+@ObjectType('SalesOrderExtraCharge')
 @Entity({ name: 'order_extra_charges' })
 export class OrderExtraCharge {
   @Field()
