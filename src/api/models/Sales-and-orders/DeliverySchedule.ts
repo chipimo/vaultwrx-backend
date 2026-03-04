@@ -20,7 +20,7 @@ export enum GraveType {
   CREMATION = 'cremation'
 }
 
-@ObjectType()
+@ObjectType('SalesDeliverySchedule')
 @Entity({ name: 'delivery_schedules' })
 export class DeliverySchedule {
   @Field()

@@ -21,7 +21,7 @@ export enum RoleType {
   CUSTOMER_ADMIN = 'CUSTOMER_ADMIN'
 }
 
-@ObjectType()
+@ObjectType('StoreRole')
 @Entity({ name: 'roles' })
 export class Role {
   @Field()

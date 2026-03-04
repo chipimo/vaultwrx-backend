@@ -1,0 +1,40 @@
+diff --git a/node_modules/routing-controllers-openapi/src/generateSpec.ts b/node_modules/routing-controllers-openapi/src/generateSpec.ts
+index e15602c..7dc26ca 100644
+--- a/node_modules/routing-controllers-openapi/src/generateSpec.ts
++++ b/node_modules/routing-controllers-openapi/src/generateSpec.ts
+@@ -173,19 +173,22 @@ export function getQueryParams(
+   const queriesMeta = route.params.find((p) => p.type === 'queries')
+   if (queriesMeta) {
+     const paramSchema = getParamSchema(queriesMeta) as oa.ReferenceObject
+-    // the last segment after '/'
+-    const paramSchemaName = paramSchema.$ref.split('/').pop() || ''
+-    const currentSchema = schemas[paramSchemaName]
+-
+-    for (const [name, schema] of Object.entries(
+-      currentSchema?.properties || {}
+-    )) {
+-      queries.push({
+-        in: 'query',
+-        name,
+-        required: currentSchema.required?.includes(name),
+-        schema,
+-      })
++    const ref = paramSchema?.$ref
++    if (ref && typeof ref === 'string') {
++      // the last segment after '/'
++      const paramSchemaName = ref.split('/').pop() || ''
++      const currentSchema = schemas[paramSchemaName]
++
++      for (const [name, schema] of Object.entries(
++        currentSchema?.properties || {}
++      )) {
++        queries.push({
++          in: 'query',
++          name,
++          required: currentSchema.required?.includes(name),
++          schema,
++        })
++      }
+     }
+   }
+   return queries

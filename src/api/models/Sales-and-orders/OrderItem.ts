@@ -54,7 +54,7 @@ export enum GraveType {
   OVERSIZED = 'oversized'
 }
 
-@ObjectType()
+@ObjectType('SalesOrderItem')
 @Entity({ name: 'order_items' })
 export class OrderItem {
   @Field()

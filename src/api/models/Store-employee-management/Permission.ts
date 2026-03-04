@@ -29,7 +29,7 @@ export enum PermissionAction {
   MANAGE = 'MANAGE'
 }
 
-@ObjectType()
+@ObjectType('StorePermission')
 @Entity({ name: 'permissions' })
 export class Permission {
   @Field()
