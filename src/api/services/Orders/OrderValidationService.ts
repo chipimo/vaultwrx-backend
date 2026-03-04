@@ -1,7 +1,21 @@
 import { Service } from 'typedi';
 import { OrderStatus, ProductType, Gender, CremationType, WitnessType, GraveType } from '@base/api/models/Sales-and-orders/Order';
 import { PhotoType } from '@base/api/models/Sales-and-orders/Photo';
-import { CreateOrderRequest, CreateOrderItemRequest, CreateDeceasedRequest, CreatePhotoRequest } from './OrderService';
+import { OrderCreateRequest } from '@base/api/requests/Orders/OrderCreateRequest';
+import { OrderItemCreateRequest } from '@base/api/requests/Orders/OrderItemCreateRequest';
+import { DeceasedCreateRequest } from '@base/api/requests/Orders/DeceasedCreateRequest';
+import { PhotoCreateRequest } from '@base/api/requests/Orders/PhotoCreateRequest';
+
+/** Order create payload with nested items, deceased, and photos */
+export interface CreateOrderRequest extends OrderCreateRequest {
+  orderItems?: OrderItemCreateRequest[];
+  deceased?: DeceasedCreateRequest;
+  photos?: PhotoCreateRequest[];
+}
+
+export type CreateOrderItemRequest = OrderItemCreateRequest;
+export type CreateDeceasedRequest = DeceasedCreateRequest;
+export type CreatePhotoRequest = PhotoCreateRequest;
 
 export interface ValidationResult {
   isValid: boolean;
@@ -37,7 +51,7 @@ export class OrderValidationService {
 
     // Validate order items
     if (orderData.orderItems) {
-      orderData.orderItems.forEach((item, index) => {
+      orderData.orderItems.forEach((item: CreateOrderItemRequest, index: number) => {
         const itemValidation = this.validateOrderItem(item);
         if (!itemValidation.isValid) {
           itemValidation.errors.forEach(error => {
@@ -59,7 +73,7 @@ export class OrderValidationService {
 
     // Validate photos
     if (orderData.photos) {
-      orderData.photos.forEach((photo, index) => {
+      orderData.photos.forEach((photo: CreatePhotoRequest, index: number) => {
         const photoValidation = this.validatePhoto(photo);
         if (!photoValidation.isValid) {
           photoValidation.errors.forEach(error => {

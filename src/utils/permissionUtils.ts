@@ -1,4 +1,4 @@
-import { LoggedUserInterface } from '@base/api/interfaces/users/LoggedUserInterface';
+import { LoggedUserInterface, LoggedUserRole } from '@base/api/interfaces/users/LoggedUserInterface';
 
 /**
  * Check if user has any of the required roles
@@ -10,7 +10,7 @@ export function hasRole(user: LoggedUserInterface | null, requiredRoles: string[
 
   // Check if user has roles array (new structure)
   if (user.roles && Array.isArray(user.roles)) {
-    const userRoleNames = user.roles.map(role => role.name);
+    const userRoleNames = user.roles.map((role: LoggedUserRole) => role.name);
     return requiredRoles.some(requiredRole => userRoleNames.includes(requiredRole));
   }
 
@@ -33,13 +33,13 @@ export function hasPermission(user: LoggedUserInterface | null, requiredPermissi
   // Check if user has roles array (new structure)
   if (user.roles && Array.isArray(user.roles)) {
     const allPermissions: string[] = [];
-    
-    user.roles.forEach(role => {
+    type Perm = { permissionKey: string; allowed: boolean };
+    user.roles.forEach((role: LoggedUserRole) => {
       // Add employee permissions
       if (role.employeePermissions && Array.isArray(role.employeePermissions)) {
         role.employeePermissions
-          .filter(permission => permission.allowed)
-          .forEach(permission => {
+          .filter((permission: Perm) => permission.allowed)
+          .forEach((permission: Perm) => {
             allPermissions.push(permission.permissionKey);
           });
       }
@@ -47,8 +47,8 @@ export function hasPermission(user: LoggedUserInterface | null, requiredPermissi
       // Add customer permissions
       if (role.customerPermissions && Array.isArray(role.customerPermissions)) {
         role.customerPermissions
-          .filter(permission => permission.allowed)
-          .forEach(permission => {
+          .filter((permission: Perm) => permission.allowed)
+          .forEach((permission: Perm) => {
             allPermissions.push(permission.permissionKey);
           });
       }
@@ -74,12 +74,13 @@ export function getUserPermissions(user: LoggedUserInterface | null): string[] {
 
   // Check if user has roles array (new structure)
   if (user.roles && Array.isArray(user.roles)) {
-    user.roles.forEach(role => {
+    type Perm = { permissionKey: string; allowed: boolean };
+    user.roles.forEach((role: LoggedUserRole) => {
       // Add employee permissions
       if (role.employeePermissions && Array.isArray(role.employeePermissions)) {
         role.employeePermissions
-          .filter(permission => permission.allowed)
-          .forEach(permission => {
+          .filter((permission: Perm) => permission.allowed)
+          .forEach((permission: Perm) => {
             allPermissions.push(permission.permissionKey);
           });
       }
@@ -87,8 +88,8 @@ export function getUserPermissions(user: LoggedUserInterface | null): string[] {
       // Add customer permissions
       if (role.customerPermissions && Array.isArray(role.customerPermissions)) {
         role.customerPermissions
-          .filter(permission => permission.allowed)
-          .forEach(permission => {
+          .filter((permission: Perm) => permission.allowed)
+          .forEach((permission: Perm) => {
             allPermissions.push(permission.permissionKey);
           });
       }
@@ -108,7 +109,7 @@ export function getUserRoles(user: LoggedUserInterface | null): string[] {
 
   // Check if user has roles array (new structure)
   if (user.roles && Array.isArray(user.roles)) {
-    return user.roles.map(role => role.name);
+    return user.roles.map((role: LoggedUserRole) => role.name);
   }
 
   // Fallback to old structure (single role)
@@ -129,12 +130,12 @@ export function hasCompanyAccess(user: LoggedUserInterface | null, companyId: st
 
   // Check if user has roles array (new structure)
   if (user.roles && Array.isArray(user.roles)) {
-    return user.roles.some(role => role.company?.id === companyId);
+    return user.roles.some((role: LoggedUserRole) => role.company?.id === companyId);
   }
 
   // Check if user has companies array
   if (user.companies && Array.isArray(user.companies)) {
-    return user.companies.some(company => company.id === companyId);
+    return user.companies.some((company: { id: string }) => company.id === companyId);
   }
 
   return false;

@@ -1,6 +1,6 @@
 import { JsonController, Get, Authorized, CurrentUser, Req } from 'routing-controllers';
 import { Service } from 'typedi';
-import { LoggedUserInterface } from '@base/api/interfaces/users/LoggedUserInterface';
+import { LoggedUserInterface, LoggedUserRole } from '@base/api/interfaces/users/LoggedUserInterface';
 import { hasRole, hasPermission, getUserRoles, getUserPermissions } from '@base/utils/permissionUtils';
 
 @Service()
@@ -26,7 +26,7 @@ export class PermissionTestController {
           email: user.email,
           hasRoles: !!user.roles,
           rolesCount: user.roles ? user.roles.length : 0,
-          roleNames: user.roles ? user.roles.map(r => r.name) : [],
+          roleNames: user.roles ? user.roles.map((r: LoggedUserRole) => r.name) : [],
           primaryRole: user.role
         } : null,
         headers: {
