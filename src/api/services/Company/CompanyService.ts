@@ -15,7 +15,7 @@ export class CompanyService {
     return await this.companyRepository.getManyAndCount(resourceOptions);
   }
 
-  public async findOneById(id: number, resourceOptions?: object) {
+  public async findOneById(id: string, resourceOptions?: object) {
     return await this.getRequestedCompanyOrFail(id, resourceOptions);
   }
 
@@ -27,17 +27,17 @@ export class CompanyService {
     return company;
   }
 
-  public async updateOneById(id: number, data: object) {
+  public async updateOneById(id: string, data: object) {
     const company = await this.getRequestedCompanyOrFail(id);
 
     return await this.companyRepository.updateCompany(company, data);
   }
 
-  public async deleteOneById(id: number) {
+  public async deleteOneById(id: string) {
     return await this.companyRepository.delete(id);
   }
 
-  private async getRequestedCompanyOrFail(id: number, resourceOptions?: object) {
+  private async getRequestedCompanyOrFail(id: string, resourceOptions?: object) {
     let company = await this.companyRepository.getOneById(id, resourceOptions);
 
     if (!company) {

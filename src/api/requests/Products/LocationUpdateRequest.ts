@@ -1,9 +1,9 @@
-import { IsOptional, IsString, IsBoolean, IsNumber, IsEmail, MaxLength } from 'class-validator';
+import { IsOptional, IsString, IsBoolean, IsEmail, MaxLength } from 'class-validator';
 
 export class LocationUpdateRequest {
   @IsOptional()
-  @IsNumber()
-  retailerId?: number;
+  @IsString()
+  retailerId?: string;
 
   @IsOptional()
   @MaxLength(255)
@@ -41,5 +41,13 @@ export class LocationUpdateRequest {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsString()
+  color?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isDefault?: boolean;
 }
 

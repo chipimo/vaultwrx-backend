@@ -1,9 +1,9 @@
-import { IsNotEmpty, IsString, IsOptional, IsBoolean, IsNumber, IsEmail, MaxLength } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, IsBoolean, IsEmail, MaxLength } from 'class-validator';
 
 export class LocationCreateRequest {
-  @IsNotEmpty()
-  @IsNumber()
-  retailerId: number;
+  @IsOptional()
+  @IsString()
+  retailerId?: string;
 
   @MaxLength(255)
   @IsString()
@@ -41,5 +41,13 @@ export class LocationCreateRequest {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsString()
+  color?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isDefault?: boolean;
 }
 

@@ -2,6 +2,7 @@ import { Column, Entity, ManyToOne, PrimaryGeneratedColumn, JoinColumn } from 't
 import { ObjectType, Field } from 'type-graphql';
 import { EntityBase } from '@base/infrastructure/abstracts/EntityBase';
 import { Order } from './Order';
+import { OrderHistory } from './OrderHistory';
 import { ServiceExtra } from '../Products/ServiceExtra';
 
 @ObjectType()
@@ -11,15 +12,25 @@ export class OrderExtraCharge extends EntityBase {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  // Order relationship
-  @Field(() => Order)
-  @ManyToOne(() => Order, (order) => order.orderExtraCharges, { onDelete: 'CASCADE' })
+  // Order relationship (current order)
+  @Field(() => Order, { nullable: true })
+  @ManyToOne(() => Order, (order) => order.orderExtraCharges, { onDelete: 'CASCADE', nullable: true })
   @JoinColumn({ name: 'order_id' })
   order: Order;
 
-  @Field(() => String)
-  @Column({ name: 'order_id', type: 'uuid' })
+  @Field(() => String, { nullable: true })
+  @Column({ name: 'order_id', type: 'uuid', nullable: true })
   orderId: string;
+
+  // Order history relationship (archived order)
+  @Field(() => OrderHistory, { nullable: true })
+  @ManyToOne(() => OrderHistory, (orderHistory) => orderHistory.orderExtraCharges, { onDelete: 'CASCADE', nullable: true })
+  @JoinColumn({ name: 'order_history_id' })
+  orderHistory: OrderHistory;
+
+  @Field(() => String, { nullable: true })
+  @Column({ name: 'order_history_id', type: 'uuid', nullable: true })
+  orderHistoryId: string;
 
   // Service extra relationship
   @Field(() => ServiceExtra, { nullable: true })

@@ -43,6 +43,18 @@ export class Retailer extends EntityBase {
   @OneToMany(() => Order, (order) => order.retailer, { cascade: false })
   orders: Order[];
 
+  @Field({ nullable: true })
+  @Column({ name: 'saturday_charge', type: 'decimal', precision: 10, scale: 2, nullable: true, default: 0 })
+  saturdayCharge: number;
+
+  @Field({ nullable: true })
+  @Column({ name: 'sunday_charge', type: 'decimal', precision: 10, scale: 2, nullable: true, default: 0 })
+  sundayCharge: number;
+
+  @Field({ nullable: true })
+  @Column({ name: 'holiday_charge', type: 'decimal', precision: 10, scale: 2, nullable: true, default: 0 })
+  holidayCharge: number;
+
   @Field()
   @Column({ name: 'created_at', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt: Date;

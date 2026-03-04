@@ -57,29 +57,48 @@ export class LocationRepository extends RepositoryBase<Location> {
   }
 
   public async createLocation(data: object, companyId?: string) {
-    let entity = new Location();
-
-    Object.assign(entity, data);
+    const entityData: Partial<Location> = { ...data as Partial<Location> };
 
     if (companyId) {
-      entity.companyId = companyId;
-      if (!entity.retailerId) {
+      entityData.companyId = companyId;
+      if (!entityData.retailerId) {
         const company = await this.manager.findOne(Company, {
           where: { id: companyId },
         });
         if (company && company.retailer_id) {
-          entity.retailerId = company.retailer_id;
+          entityData.retailerId = company.retailer_id;
         }
       }
     }
 
-    return await this.save(entity);
+    // Set defaults
+    if (entityData.isActive === undefined) {
+      entityData.isActive = true;
+    }
+    if (entityData.isDefault === undefined) {
+      entityData.isDefault = false;
+    }
+
+    const result = await this.createQueryBuilder()
+      .insert()
+      .into(Location)
+      .values(entityData)
+      .returning('*')
+      .execute();
+
+    return result.generatedMaps[0] as Location;
   }
 
   public async updateLocation(location: Location, data: object) {
-    Object.assign(location, data);
+    await this.createQueryBuilder()
+      .update(Location)
+      .set(data)
+      .where('id = :id', { id: location.id })
+      .execute();
 
-    return await location.save(data);
+    return await this.findOne({ where: { id: location.id } });
   }
 }
+
+
 

@@ -161,5 +161,9 @@ export class OrderUpdateRequest {
   @IsOptional()
   @IsString()
   storeZip?: string;
+
+  @IsOptional()
+  @IsString()
+  trackingColor?: string;
 }
 

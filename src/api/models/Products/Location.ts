@@ -68,6 +68,14 @@ export class Location extends EntityBase {
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
 
+  @Field({ nullable: true })
+  @Column({ nullable: true })
+  color: string; // Hex color code for UI display
+
+  @Field()
+  @Column({ name: 'is_default', default: false })
+  isDefault: boolean;
+
   // Relationships
   @Field(() => [Order], { nullable: true })
   @OneToMany(() => Order, (order) => order.location, { cascade: false })

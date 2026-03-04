@@ -26,8 +26,4 @@ export class AuthService {
   public sign(payload: object, dataReturn: object): object {
     return this.provider.sign(payload, dataReturn);
   }
-
-  public verify(token: string): any {
-    return this.provider.verify(token);
-  }
 }

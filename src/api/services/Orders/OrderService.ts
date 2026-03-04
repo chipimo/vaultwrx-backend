@@ -4,62 +4,14 @@ import { OrderNotFoundException } from '@api/exceptions/Orders/OrderNotFoundExce
 import { EventDispatcher, EventDispatcherInterface } from '@base/decorators/EventDispatcher';
 import { InjectRepository } from 'typeorm-typedi-extensions';
 import { ProductType } from '@api/models/Products/Product';
-import { ProductType as OrderProductType, Gender, CremationType, WitnessType, GraveType } from '@base/api/models/Sales-and-orders/OrderItem';
-import { PhotoType } from '@base/api/models/Sales-and-orders/Photo';
-
-// Request interfaces for order creation
-export interface CreateOrderItemRequest {
-  productId?: string;
-  productType?: OrderProductType;
-  quantity?: number;
-  unitPrice?: number;
-  cremationType?: CremationType;
-  witnessType?: WitnessType;
-  lastDayLettering?: boolean;
-  graveType?: GraveType;
-  gender?: Gender;
-  deliverBy?: string;
-  serviceDate?: string;
-  deliveryTime?: string;
-  serviceTime?: string;
-  engraving?: string;
-  customization?: string;
-}
-
-export interface CreateDeceasedRequest {
-  name?: string;
-  birthDate?: string;
-  deathDate?: string;
-  gender?: Gender;
-  height?: string;
-  weight?: string;
-}
-
-export interface CreatePhotoRequest {
-  url?: string;
-  type?: PhotoType;
-  fileSize?: number;
-  mimeType?: string;
-}
-
-export interface CreateOrderRequest {
-  customerId?: string;
-  retailerId?: string;
-  deceased?: CreateDeceasedRequest;
-  orderItems?: CreateOrderItemRequest[];
-  photos?: CreatePhotoRequest[];
-  dateOfService?: string;
-  timeOfService?: string;
-  arrivalTime?: string;
-  email?: string;
-  cellPhone?: string;
-}
+import { OrderHistoryService } from '@api/services/Orders/OrderHistoryService';
 
 @Service()
 export class OrderService {
   constructor(
     @InjectRepository() private orderRepository: OrderRepository,
-    @EventDispatcher() private eventDispatcher: EventDispatcherInterface
+    @EventDispatcher() private eventDispatcher: EventDispatcherInterface,
+    private orderHistoryService: OrderHistoryService
   ) {}
 
   public async getAll(resourceOptions?: any, companyId?: string) {
@@ -81,12 +33,14 @@ export class OrderService {
   public async getOrdersGroupedByDateAndProductType(
     resourceOptions?: any,
     companyId?: string,
-    productType?: ProductType | 'all'
+    productType?: ProductType | 'all',
+    orderStatus?: string
   ) {
     return await this.orderRepository.getOrdersGroupedByDateAndProductType(
       companyId,
       resourceOptions,
-      productType
+      productType,
+      orderStatus
     );
   }
 
@@ -117,13 +71,15 @@ export class OrderService {
   }
 
   private async getRequestedOrderOrFail(id: string, resourceOptions?: object, companyId?: string) {
-    let order = await this.orderRepository.getOneById(id, resourceOptions, companyId);
-
-    if (!order) {
+    const order = await this.orderRepository.getOneById(id, resourceOptions, companyId);
+    if (order) {
+      return order;
+    }
+    try {
+      return await this.orderHistoryService.getOneById(id, companyId!);
+    } catch {
       throw new OrderNotFoundException();
     }
-
-    return order;
   }
 }
 

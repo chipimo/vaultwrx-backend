@@ -51,6 +51,10 @@ export class Company extends EntityBase {
   })
   type: string;
 
+  @Field({ nullable: true })
+  @Column({ nullable: true })
+  logo: string;
+
   @Field(() => String, { nullable: true })
   @Column({ name: 'retailer_id', type: 'uuid', nullable: true, unique: true })
   retailer_id: string;

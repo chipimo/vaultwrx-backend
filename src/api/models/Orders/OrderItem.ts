@@ -2,6 +2,7 @@ import { Column, Entity, ManyToOne, OneToMany, PrimaryGeneratedColumn, JoinColum
 import { ObjectType, Field, registerEnumType } from 'type-graphql';
 import { EntityBase } from '@base/infrastructure/abstracts/EntityBase';
 import { Order } from './Order';
+import { OrderHistory } from './OrderHistory';
 import { Product, ProductType } from '../Products/Product';
 import { Color } from '../Products/Color';
 import { DeliverySchedule } from './DeliverySchedule';
@@ -72,20 +73,30 @@ export class OrderItem extends EntityBase {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  // Order relationship
-  @Field(() => Order)
-  @ManyToOne(() => Order, (order) => order.orderItems, { onDelete: 'CASCADE' })
+  // Order relationship (current order)
+  @Field(() => Order, { nullable: true })
+  @ManyToOne(() => Order, (order) => order.orderItems, { onDelete: 'CASCADE', nullable: true })
   @JoinColumn({ name: 'order_id' })
   order: Order;
+
+  @Field(() => String, { nullable: true })
+  @Column({ name: 'order_id', type: 'uuid', nullable: true })
+  orderId: string;
+
+  // Order history relationship (archived order)
+  @Field(() => OrderHistory, { nullable: true })
+  @ManyToOne(() => OrderHistory, (orderHistory) => orderHistory.orderItems, { onDelete: 'CASCADE', nullable: true })
+  @JoinColumn({ name: 'order_history_id' })
+  orderHistory: OrderHistory;
+
+  @Field(() => String, { nullable: true })
+  @Column({ name: 'order_history_id', type: 'uuid', nullable: true })
+  orderHistoryId: string;
 
   // Delivery schedules relationship
   @Field(() => [DeliverySchedule], { nullable: true })
   @OneToMany(() => DeliverySchedule, (deliverySchedule) => deliverySchedule.orderItem, { cascade: true })
   deliverySchedules: DeliverySchedule[];
-
-  @Field(() => String)
-  @Column({ name: 'order_id', type: 'uuid' })
-  orderId: string;
 
   // Product relationship
   @Field(() => Product, { nullable: true })

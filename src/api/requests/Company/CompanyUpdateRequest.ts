@@ -25,5 +25,9 @@ export class CompanyUpdateRequest {
   @IsOptional()
   @IsString()
   type?: string;
+
+  @IsOptional()
+  @IsString()
+  logo?: string;
 }
 

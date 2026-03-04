@@ -153,10 +153,14 @@ export class OrderController {
       }
     }
 
+    // Extract orderStatus from query params (ongoing, confirmed, pending, past, deleted, edited)
+    const orderStatus = request.query?.orderStatus || request.query?.status;
+
     return await this.orderService.getOrdersGroupedByDateAndProductType(
       resourceOptions,
       companyId,
-      productType
+      productType,
+      orderStatus
     );
   }
 

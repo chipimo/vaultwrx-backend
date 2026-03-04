@@ -1,6 +1,13 @@
-import { Column, Entity, OneToMany, ManyToOne, PrimaryGeneratedColumn, JoinColumn } from 'typeorm';
-import { ObjectType, Field, registerEnumType } from 'type-graphql';
-import { EntityBase } from '@base/infrastructure/abstracts/EntityBase';
+import {
+  Column,
+  Entity,
+  OneToMany,
+  ManyToOne,
+  PrimaryColumn,
+  JoinColumn,
+} from 'typeorm';
+import { ObjectType, Field } from 'type-graphql';
+import { OrderStatus } from './Order';
 import { User } from '../Users/User';
 import { Customer } from '../Users/Customer';
 import { Staff } from '../Users/Staff';
@@ -15,45 +22,15 @@ import { OrderContact } from './OrderContact';
 import { Comment } from './Comment';
 import { Company } from '../Company/Company';
 
-export enum OrderStatus {
-  DRAFT = 'draft',
-  PENDING = 'pending',
-  CONFIRMED = 'confirmed',
-  PROCESSING = 'processing',
-  IN_PROGRESS = 'in_progress',
-  COMPLETED = 'completed',
-  CANCELLED = 'cancelled',
-  DELIVERED = 'delivered',
-  SHIPPED = 'shipped',
-  RETURNED = 'returned',
-}
-
-export enum ServiceType {
-  TRADITIONAL = 'traditional',
-  CREMATION = 'cremation',
-  MEMORIAL = 'memorial',
-  GRAVESIDE = 'graveside',
-}
-
-registerEnumType(OrderStatus, {
-  name: 'OrderStatus',
-  description: 'Order status types',
-});
-
-registerEnumType(ServiceType, {
-  name: 'ServiceType',
-  description: 'Service types',
-});
-
 @ObjectType()
-@Entity({ name: 'orders' })
-export class Order extends EntityBase {
+@Entity({ name: 'order_history' })
+export class OrderHistory {
   @Field(() => String)
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn('uuid')
   id: string;
 
   @Field(() => Company, { nullable: true })
-  @ManyToOne(() => Company, (company) => company.orders, { nullable: true })
+  @ManyToOne(() => Company, { nullable: true })
   @JoinColumn({ name: 'company_id' })
   company: Company;
 
@@ -81,12 +58,8 @@ export class Order extends EntityBase {
   @Column({ name: 'staff_id', type: 'uuid', nullable: true })
   staffId: string;
 
-  @Field(() => OrderStatus)
-  @Column({
-    type: 'varchar',
-    length: 50,
-    default: OrderStatus.DRAFT,
-  })
+  @Field(() => String)
+  @Column({ type: 'varchar', length: 50, default: 'draft' })
   status: OrderStatus;
 
   @Field()
@@ -122,7 +95,7 @@ export class Order extends EntityBase {
   cemetery: string;
 
   @Field(() => Location, { nullable: true })
-  @ManyToOne(() => Location, (location) => location.orders, { nullable: true })
+  @ManyToOne(() => Location, { nullable: true })
   @JoinColumn({ name: 'location_id' })
   location: Location;
 
@@ -155,7 +128,7 @@ export class Order extends EntityBase {
   cellPhone: string;
 
   @Field(() => [OrderContact], { nullable: true })
-  @OneToMany(() => OrderContact, (orderContact) => orderContact.order, { cascade: true })
+  @OneToMany(() => OrderContact, (orderContact) => orderContact.orderHistory, { nullable: true })
   contacts: OrderContact[];
 
   @Field()
@@ -230,24 +203,40 @@ export class Order extends EntityBase {
   @Column({ name: 'tracking_color', nullable: true })
   trackingColor: string;
 
+  @Field()
+  @Column({ name: 'created_at', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  createdAt: Date;
+
+  @Field()
+  @Column({ name: 'updated_at', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  updatedAt: Date;
+
+  @Field()
+  @Column({ name: 'archived_at', type: 'timestamptz' })
+  archivedAt: Date;
+
+  @Field({ nullable: true })
+  @Column({ name: 'order_type', type: 'varchar', nullable: true })
+  orderType: string;
+
   @Field(() => [OrderItem], { nullable: true })
-  @OneToMany(() => OrderItem, (orderItem) => orderItem.order, { cascade: true })
+  @OneToMany(() => OrderItem, (orderItem) => orderItem.orderHistory, { nullable: true })
   orderItems: OrderItem[];
 
   @Field(() => [Deceased], { nullable: true })
-  @OneToMany(() => Deceased, (deceased) => deceased.order, { cascade: true })
+  @OneToMany(() => Deceased, (deceased) => deceased.orderHistory, { nullable: true })
   deceased: Deceased[];
 
   @Field(() => [Photo], { nullable: true })
-  @OneToMany(() => Photo, (photo) => photo.order, { cascade: true })
+  @OneToMany(() => Photo, (photo) => photo.orderHistory, { nullable: true })
   photos: Photo[];
 
   @Field(() => [OrderExtraCharge], { nullable: true })
-  @OneToMany(() => OrderExtraCharge, (orderExtraCharge) => orderExtraCharge.order, { cascade: true })
+  @OneToMany(() => OrderExtraCharge, (oec) => oec.orderHistory, { nullable: true })
   orderExtraCharges: OrderExtraCharge[];
 
   @Field(() => [Comment], { nullable: true })
-  @OneToMany(() => Comment, (comment) => comment.order, { cascade: true })
+  @OneToMany(() => Comment, (comment) => comment.orderHistory, { nullable: true })
   orderComments: Comment[];
 
   @Field(() => User, { nullable: true })
@@ -256,31 +245,22 @@ export class Order extends EntityBase {
   user: User;
 
   @Field(() => Retailer, { nullable: true })
-  @ManyToOne(() => Retailer, (retailer) => retailer.orders, { nullable: true })
+  @ManyToOne(() => Retailer, { nullable: true })
   @JoinColumn({ name: 'retailer_id' })
   retailer: Retailer;
 
   @Field(() => Customer, { nullable: true })
-  @ManyToOne(() => Customer, (customer) => customer.customerOrders, { nullable: true })
+  @ManyToOne(() => Customer, { nullable: true })
   @JoinColumn({ name: 'customer_id' })
   customer: Customer;
 
   @Field(() => FuneralDirector, { nullable: true })
-  @ManyToOne(() => FuneralDirector, (funeralDirector) => funeralDirector.orders, { nullable: true })
+  @ManyToOne(() => FuneralDirector, { nullable: true })
   @JoinColumn({ name: 'director_id' })
   director: FuneralDirector;
 
   @Field(() => Staff, { nullable: true })
-  @ManyToOne(() => Staff, (staff) => staff.orders, { nullable: true })
+  @ManyToOne(() => Staff, { nullable: true })
   @JoinColumn({ name: 'staff_id' })
   staff: Staff;
-
-  @Field()
-  @Column({ name: 'created_at', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
-  createdAt: Date;
-
-  @Field()
-  @Column({ name: 'updated_at', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP', onUpdate: 'CURRENT_TIMESTAMP' })
-  updatedAt: Date;
 }
-

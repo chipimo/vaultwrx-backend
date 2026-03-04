@@ -22,7 +22,7 @@ export interface LocationSuggestion {
   boundingBox?: string[];
 }
 
-export interface ReverseGeocodingResult {
+export interface ReverseGeocodingResult { 
   placeId: string;
   displayName: string;
   address: {

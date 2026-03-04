@@ -6,6 +6,7 @@ import { FuneralDirector } from '@api/models/Users/FuneralDirector';
 import { Admin } from '@api/models/Users/Admin';
 import { Company } from '@api/models/Company/Company';
 import { Order } from '@api/models/Orders/Order';
+import { OrderHistory } from '@api/models/Orders/OrderHistory';
 import { OrderItem } from '@api/models/Orders/OrderItem';
 import { Deceased } from '@api/models/Orders/Deceased';
 import { Photo } from '@api/models/Orders/Photo';
@@ -39,6 +40,7 @@ const allEntities = [
   Admin,
   Company,
   Order,
+  OrderHistory,
   OrderItem,
   Deceased,
   Photo,

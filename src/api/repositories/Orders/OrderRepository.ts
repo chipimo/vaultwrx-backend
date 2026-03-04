@@ -51,8 +51,14 @@ export class OrderRepository extends RepositoryBase<Order> {
       .leftJoinAndSelect('contactsCustomer.user', 'contactsCustomerUser')
       .leftJoinAndSelect('contactsCustomer.company', 'contactsCustomerCompany');
 
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    queryBuilder.where(
+      '(order.date_of_service >= :today OR order.date_of_service IS NULL)',
+      { today }
+    );
     if (companyId) {
-      queryBuilder.where('order.company_id = :companyId', { companyId });
+      queryBuilder.andWhere('order.company_id = :companyId', { companyId });
     }
 
     if (resourceOptions) {
@@ -95,7 +101,6 @@ export class OrderRepository extends RepositoryBase<Order> {
       .leftJoinAndSelect('order.location', 'location')
       .leftJoinAndSelect('location.company', 'locationCompany')
       .leftJoinAndSelect('order.user', 'user')
-      .leftJoinAndSelect('user.user', 'userUser')
       .leftJoinAndSelect('user.company', 'userCompany')
       .leftJoinAndSelect('order.retailer', 'retailer')
       .leftJoinAndSelect('retailer.user', 'retailerUser')
@@ -503,12 +508,23 @@ export class OrderRepository extends RepositoryBase<Order> {
    * Returns an array of date groups, each containing product type groups
    * Structure: [{ "date": "YYYY-MM-DD", "vaults": [...], "caskets": [...], ... }, ...]
    * If productType is provided, only returns orders with that product type and only that type in the response
+   * If orderStatus is provided, filters orders by their status:
+   *   - 'ongoing': orders where orderDStatus = 'ongoing' AND confirmed = true
+   *   - 'confirmed': orders where confirmed = true AND orderDStatus != 'ongoing'
+   *   - 'pending': orders where confirmed = false AND orderDStatus != 'ongoing'
+   *   - 'past': orders where dateOfService < today
+   *   - 'deleted': orders where isDeleted = true
+   *   - 'edited': orders where isEdited = true
    */
   public async getOrdersGroupedByDateAndProductType(
     companyId?: string,
     resourceOptions?: any,
-    productType?: ProductType | 'all'
+    productType?: ProductType | 'all',
+    orderStatus?: string
   ) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     const queryBuilder = this.createQueryBuilder('order')
       .leftJoinAndSelect('order.company', 'company')
       .leftJoinAndSelect('order.location', 'location')
@@ -543,9 +559,58 @@ export class OrderRepository extends RepositoryBase<Order> {
       .leftJoinAndSelect('order.contacts', 'contacts')
       .leftJoinAndSelect('contacts.customer', 'contactsCustomer')
       .leftJoinAndSelect('contactsCustomer.user', 'contactsCustomerUser')
-      .leftJoinAndSelect('contactsCustomer.company', 'contactsCustomerCompany')
-      .where('order.is_deleted = :isDeleted', { isDeleted: false })
-      .andWhere('order.date_of_service IS NOT NULL');
+      .leftJoinAndSelect('contactsCustomer.company', 'contactsCustomerCompany');
+
+    // Apply base filters based on orderStatus
+    switch (orderStatus) {
+      case 'ongoing':
+        // Ongoing orders: orderDStatus = 'ongoing' AND confirmed = true (current only)
+        queryBuilder
+          .where('order.order_d_status = :orderDStatus', { orderDStatus: 'ongoing' })
+          .andWhere('order.confirmed = :confirmed', { confirmed: true })
+          .andWhere('order.is_deleted = :isDeleted', { isDeleted: false })
+          .andWhere('(order.date_of_service >= :today OR order.date_of_service IS NULL)', { today });
+        break;
+      case 'confirmed':
+        // Confirmed orders: confirmed = true AND orderDStatus != 'ongoing' (current only)
+        queryBuilder
+          .where('order.confirmed = :confirmed', { confirmed: true })
+          .andWhere('(order.order_d_status IS NULL OR order.order_d_status != :orderDStatus)', { orderDStatus: 'ongoing' })
+          .andWhere('order.is_deleted = :isDeleted', { isDeleted: false })
+          .andWhere('(order.date_of_service >= :today OR order.date_of_service IS NULL)', { today });
+        break;
+      case 'pending':
+        // Pending orders: confirmed = false AND orderDStatus != 'ongoing' (current only)
+        queryBuilder
+          .where('order.confirmed = :confirmed', { confirmed: false })
+          .andWhere('(order.order_d_status IS NULL OR order.order_d_status != :orderDStatus)', { orderDStatus: 'ongoing' })
+          .andWhere('order.is_deleted = :isDeleted', { isDeleted: false })
+          .andWhere('(order.date_of_service >= :today OR order.date_of_service IS NULL)', { today });
+        break;
+      case 'past':
+        // Past orders: dateOfService < today (history tab; after cron, these live in order_history)
+        queryBuilder
+          .where('order.date_of_service < :today', { today })
+          .andWhere('order.is_deleted = :isDeleted', { isDeleted: false })
+          .andWhere('order.is_edited = :isEdited', { isEdited: false });
+        break;
+      case 'deleted':
+        // Deleted orders
+        queryBuilder.where('order.is_deleted = :isDeleted', { isDeleted: true });
+        break;
+      case 'edited':
+        // Edited orders
+        queryBuilder
+          .where('order.is_edited = :isEdited', { isEdited: true })
+          .andWhere('order.is_deleted = :isDeleted', { isDeleted: false });
+        break;
+      default:
+        // Default: current orders only (date >= today or null)
+        queryBuilder
+          .where('order.is_deleted = :isDeleted', { isDeleted: false })
+          .andWhere('(order.date_of_service >= :today OR order.date_of_service IS NULL)', { today });
+        break;
+    }
 
     if (companyId) {
       queryBuilder.andWhere('order.company_id = :companyId', { companyId });

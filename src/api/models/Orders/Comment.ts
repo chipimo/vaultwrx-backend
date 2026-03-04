@@ -2,6 +2,7 @@ import { Column, Entity, ManyToOne, PrimaryGeneratedColumn, JoinColumn } from 't
 import { ObjectType, Field } from 'type-graphql';
 import { EntityBase } from '@base/infrastructure/abstracts/EntityBase';
 import { Order } from './Order';
+import { OrderHistory } from './OrderHistory';
 import { Customer } from '../Users/Customer';
 import { User } from '../Users/User';
 
@@ -12,14 +13,23 @@ export class Comment extends EntityBase {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Field(() => Order)
-  @ManyToOne(() => Order, (order) => order.comments, { onDelete: 'CASCADE' })
+  @Field(() => Order, { nullable: true })
+  @ManyToOne(() => Order, (order) => order.orderComments, { onDelete: 'CASCADE', nullable: true })
   @JoinColumn({ name: 'order_id' })
   order: Order;
 
-  @Field(() => String)
-  @Column({ name: 'order_id', type: 'uuid' })
+  @Field(() => String, { nullable: true })
+  @Column({ name: 'order_id', type: 'uuid', nullable: true })
   orderId: string;
+
+  @Field(() => OrderHistory, { nullable: true })
+  @ManyToOne(() => OrderHistory, (orderHistory) => orderHistory.orderComments, { onDelete: 'CASCADE', nullable: true })
+  @JoinColumn({ name: 'order_history_id' })
+  orderHistory: OrderHistory;
+
+  @Field(() => String, { nullable: true })
+  @Column({ name: 'order_history_id', type: 'uuid', nullable: true })
+  orderHistoryId: string;
 
   @Field(() => User, { nullable: true })
   @ManyToOne(() => User, { nullable: true })
