@@ -1,3 +1,29 @@
+diff --git a/node_modules/routing-controllers-openapi/build/generateSpec.js b/node_modules/routing-controllers-openapi/build/generateSpec.js
+index dfb307e..9aa6b07 100644
+--- a/node_modules/routing-controllers-openapi/build/generateSpec.js
++++ b/node_modules/routing-controllers-openapi/build/generateSpec.js
+@@ -121,15 +121,18 @@ function getQueryParams(route, schemas) {
+     const queriesMeta = route.params.find((p) => p.type === 'queries');
+     if (queriesMeta) {
+         const paramSchema = getParamSchema(queriesMeta);
+-        const paramSchemaName = paramSchema.$ref.split('/').pop() || '';
+-        const currentSchema = schemas[paramSchemaName];
+-        for (const [name, schema] of Object.entries((currentSchema === null || currentSchema === void 0 ? void 0 : currentSchema.properties) || {})) {
++        const ref = paramSchema === null || paramSchema === void 0 ? void 0 : paramSchema.$ref;
++        if (ref && typeof ref === 'string') {
++            const paramSchemaName = ref.split('/').pop() || '';
++            const currentSchema = schemas[paramSchemaName];
++            for (const [name, schema] of Object.entries((currentSchema === null || currentSchema === void 0 ? void 0 : currentSchema.properties) || {})) {
+             queries.push({
+                 in: 'query',
+                 name,
+                 required: (_a = currentSchema.required) === null || _a === void 0 ? void 0 : _a.includes(name),
+                 schema,
+             });
++            }
+         }
+     }
+     return queries;
 diff --git a/node_modules/routing-controllers-openapi/src/generateSpec.ts b/node_modules/routing-controllers-openapi/src/generateSpec.ts
 index e15602c..7dc26ca 100644
 --- a/node_modules/routing-controllers-openapi/src/generateSpec.ts

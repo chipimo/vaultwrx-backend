@@ -30,7 +30,7 @@ export enum PaymentFrequency {
   ANNUALLY = 'annually'
 }
 
-@ObjectType()
+@ObjectType('CompanyRetailer')
 @Entity({ name: 'retailers' })
 export class Retailer {
   @Field()

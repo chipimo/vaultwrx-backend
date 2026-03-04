@@ -22,7 +22,7 @@ export enum CustomerType {
   ORGANIZATION = 'organization'
 }
 
-@ObjectType()
+@ObjectType('StoreCustomer')
 @Entity({ name: 'customers' })
 export class Customer {
   @Field()

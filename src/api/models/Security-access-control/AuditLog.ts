@@ -65,7 +65,7 @@ export enum AuditResourceType {
   RETAILER = 'RETAILER',
 }
 
-@ObjectType()
+@ObjectType('SecurityAuditLog')
 @Entity({ name: 'audit_logs' })
 export class AuditLog {
   @Field((type) => String)

@@ -33,7 +33,7 @@ export enum AuthProvider {
   EMAIL = 'email'
 }
 
-@ObjectType()
+@ObjectType('AuthUser')
 @Entity({ name: 'users' })
 export class User {
   @Field()

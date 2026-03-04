@@ -25,7 +25,7 @@ export enum StaffPosition {
   ASSISTANT = 'assistant'
 }
 
-@ObjectType()
+@ObjectType('StoreStaff')
 @Entity({ name: 'staff' })
 export class Staff {
   @Field()
