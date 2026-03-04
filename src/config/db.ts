@@ -75,15 +75,24 @@ const isRemoteHost = dbConfig.host && dbConfig.host !== 'localhost' && dbConfig.
 if (isAzurePostgres || isRemoteHost) {
   const sslValue = { rejectUnauthorized: false };
   dbConfig.extra = {
+    ...(dbConfig.extra || {}),
     ssl: sslValue,
   };
   dbConfig.ssl = sslValue;
 } else if (sslConfig) {
   dbConfig.extra = {
+    ...(dbConfig.extra || {}),
     ssl: sslConfig === true ? true : sslConfig,
   };
   if (typeof sslConfig === 'object') {
     dbConfig.ssl = sslConfig;
   }
+}
+
+// On Netlify (serverless), use a shorter connection timeout so we fail fast
+// and don't hold the function for 15+ seconds. Also ensure DB firewall
+// allows connections from the internet (e.g. 0.0.0.0/0 or your provider's guidance).
+if (process.env.NETLIFY === 'true') {
+  dbConfig.extra = { ...(dbConfig.extra || {}), connectionTimeoutMillis: 10000 };
 }
 

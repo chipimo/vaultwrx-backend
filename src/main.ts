@@ -65,25 +65,26 @@ export class App {
 
   private async typeOrmCreateConnection() {
     try {
-      const tempConfig = { ...dbConfig, synchronize: false };
-      const tempConnection = await createConnection(tempConfig);
-      
-      try {
-        await tempConnection.query(`
-          CREATE OR REPLACE FUNCTION uuid_generate_v4()
-          RETURNS uuid AS $$
-          BEGIN
-            RETURN gen_random_uuid();
-          END;
-          $$ LANGUAGE plpgsql;
-        `);
-      } catch (funcError: any) {
-        if (process.env.NODE_ENV !== 'production') {
-          console.warn('Could not create UUID function:', funcError?.message);
+      // On Netlify, skip the UUID helper step and use a single connection (faster cold start).
+      if (process.env.NETLIFY !== 'true') {
+        const tempConfig = { ...dbConfig, synchronize: false };
+        const tempConnection = await createConnection(tempConfig);
+        try {
+          await tempConnection.query(`
+            CREATE OR REPLACE FUNCTION uuid_generate_v4()
+            RETURNS uuid AS $$
+            BEGIN
+              RETURN gen_random_uuid();
+            END;
+            $$ LANGUAGE plpgsql;
+          `);
+        } catch (funcError: any) {
+          if (process.env.NODE_ENV !== 'production') {
+            console.warn('Could not create UUID function:', funcError?.message);
+          }
         }
+        await tempConnection.close();
       }
-      
-      await tempConnection.close();
       await createConnection(dbConfig);
     } catch (error) {
       console.error('❌ Cannot connect to database:', error instanceof Error ? error.message : error);
