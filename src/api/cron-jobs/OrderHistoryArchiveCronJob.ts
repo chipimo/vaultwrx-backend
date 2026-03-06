@@ -98,15 +98,10 @@ export class OrderHistoryArchiveCronJob {
     today.setHours(0, 0, 0, 0);
 
     const orderRepo = connection.getRepository(Order);
+    const orderHistoryRepo = connection.getRepository(OrderHistory);
 
-    const existingHistoryIds = await connection
-      .createQueryBuilder()
-      .select('id')
-      .from(OrderHistory, 'oh')
-      .getRawMany()
-      .then((rows: { id: string }[]) => rows.map((r) => r.id));
-
-    const idsToSkip = new Set(existingHistoryIds);
+    const existingRows = await orderHistoryRepo.find({ select: ['id'] });
+    const idsToSkip = new Set(existingRows.map((r) => r.id));
 
     let processed = 0;
     let hasMore = true;
