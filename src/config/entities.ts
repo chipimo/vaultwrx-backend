@@ -26,6 +26,7 @@ import { Color } from '@api/models/Products/Color';
 import { Emblem } from '@api/models/Products/Emblem';
 import { Category } from '@api/models/Products/Category';
 import { Location } from '@api/models/Products/Location';
+import { MapLocation } from '@api/models/Products/MapLocation';
 import { ServiceExtra } from '@api/models/Products/ServiceExtra';
 import { Permission } from '@api/models/Security/Permission';
 import { Role } from '@api/models/Security/Role';
@@ -60,6 +61,7 @@ const allEntities = [
   Emblem,
   Category,
   Location,
+  MapLocation,
   ServiceExtra,
   Permission,
   Role,
