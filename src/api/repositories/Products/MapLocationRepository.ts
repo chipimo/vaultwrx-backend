@@ -11,11 +11,26 @@ export class MapLocationRepository extends RepositoryBase<MapLocation> {
         .where('map_location.company_id = :companyId', { companyId });
 
       if (resourceOptions) {
-        const { filters, sorts, pagination } = resourceOptions;
+        const { filters, sorts, pagination, search } = resourceOptions;
         if (filters) {
           Object.keys(filters).forEach((key) => {
             queryBuilder.andWhere(`map_location.${key} = :${key}`, { [key]: filters[key] });
           });
+        }
+        if (search) {
+          const searchPattern = `%${String(search)}%`;
+          queryBuilder.andWhere(
+            `(
+              map_location.name ILIKE :searchPattern
+              OR map_location.address ILIKE :searchPattern
+              OR map_location.city ILIKE :searchPattern
+              OR map_location.state ILIKE :searchPattern
+              OR map_location.formatted_address ILIKE :searchPattern
+              OR map_location.description ILIKE :searchPattern
+              OR map_location.zip_code::text ILIKE :searchPattern
+            )`,
+            { searchPattern }
+          );
         }
         if (sorts) {
           sorts.forEach((sort: any) => {
@@ -24,6 +39,8 @@ export class MapLocationRepository extends RepositoryBase<MapLocation> {
         }
         if (pagination) {
           queryBuilder.skip(pagination.skip).take(pagination.take);
+        } else if (resourceOptions.skip !== undefined && resourceOptions.take !== undefined) {
+          queryBuilder.skip(resourceOptions.skip).take(resourceOptions.take);
         }
       }
 

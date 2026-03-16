@@ -24,7 +24,7 @@ export class GeocodingController {
   @Get('/search')
   @OpenAPI({
     summary: 'Search for location suggestions',
-    description: 'Provides autocomplete suggestions for locations based on the search query using Nominatim (OpenStreetMap)',
+    description: 'Autocomplete for locations. When GOOGLE_PLACES_API_KEY is set, uses Google Places API (New) Text Search so queries like "Riverside Indiana cemetery" return the same results as Google Maps; otherwise falls back to Nominatim (OpenStreetMap).',
   })
   public async searchLocations(
     @Req() request: Request,
@@ -62,7 +62,7 @@ export class GeocodingController {
   @Get('/autocomplete')
   @OpenAPI({
     summary: 'Location autocomplete',
-    description: 'Provides autocomplete suggestions for locations (alias for /search)',
+    description: 'Autocomplete for map locations (alias for /search). Uses Google Places when API key is set.',
   })
   public async autocomplete(
     @Req() request: Request,

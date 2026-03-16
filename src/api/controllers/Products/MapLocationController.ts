@@ -22,11 +22,36 @@ export class MapLocationController extends ControllerBase {
   }
 
   @Get()
-  public async getAll(@QueryParams() parseResourceOptions: RequestQueryParser, @Req() req: Request) {
+  public async getAll(
+    @QueryParams() parseResourceOptions: RequestQueryParser,
+    @Req() req: Request
+  ) {
     const companyId = (req.headers['company-id'] || req.headers['x-company-id']) as string;
     if (!companyId) throw new NotFoundError('Company ID is required in the headers.');
 
-    const resourceOptions = parseResourceOptions.getAll();
+    // Parse pagination and search from query params
+    const { page, limit, q } = req.query;
+    let skip, take;
+    if (page !== undefined && limit !== undefined) {
+      const pageNum = parseInt(page as string, 10);
+      const limitNum = parseInt(limit as string, 10);
+      if (!isNaN(pageNum) && !isNaN(limitNum) && pageNum > 0 && limitNum > 0) {
+        skip = (pageNum - 1) * limitNum;
+        take = limitNum;
+      }
+    }
+
+    // Get resource options and inject pagination + search
+    const resourceOptions = parseResourceOptions.getAll() as Record<string, unknown>;
+    if (skip !== undefined && take !== undefined) {
+      resourceOptions.skip = skip;
+      resourceOptions.take = take;
+    }
+    const searchQuery = typeof q === 'string' ? q.trim() : '';
+    if (searchQuery) {
+      resourceOptions.search = searchQuery;
+    }
+
     return await this.mapLocationService.getAll(resourceOptions, companyId);
   }
 
