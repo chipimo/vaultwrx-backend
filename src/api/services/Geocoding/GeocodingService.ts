@@ -75,13 +75,22 @@ const PHOTON_BASE_URL = 'https://photon.komoot.io/api';
 
 /** Nominatim allows max 1 request per second (usage policy). */
 const NOMINATIM_MIN_INTERVAL_MS = 1100;
-const NOMINATIM_429_RETRY_AFTER_MS = 2000;
+const NOMINATIM_429_RETRY_AFTER_MS = 4000;
 
 @Service()
 export class GeocodingService {
   private readonly baseUrl = 'https://nominatim.openstreetmap.org';
   private readonly userAgent = 'VaultWrx/1.0';
   private lastNominatimRequest = 0;
+  /** Serialize Nominatim usage across concurrent HTTP requests (bulk upload sends many at once). */
+  private nominatimQueue: Promise<unknown> = Promise.resolve();
+
+  /** Resolve Google Places API key (prefer dedicated env name, then shared Maps key). */
+  private getGooglePlacesApiKey(): string | null {
+    const fromPlaces = env('GOOGLE_PLACES_API_KEY', null);
+    const fromMaps = env('GOOGLE_MAPS_API_KEY', null);
+    return (fromPlaces && String(fromPlaces).trim()) || (fromMaps && String(fromMaps).trim()) || null;
+  }
 
   /** Throttle Nominatim calls to 1 request per second per usage policy. */
   private async throttleNominatim(): Promise<void> {
@@ -91,6 +100,34 @@ export class GeocodingService {
       await new Promise((r) => setTimeout(r, NOMINATIM_MIN_INTERVAL_MS - elapsed));
     }
     this.lastNominatimRequest = Date.now();
+  }
+
+  /** Run one Nominatim operation at a time + throttled (avoids 429 under parallel load). */
+  private runNominatimExclusive<T>(fn: () => Promise<T>): Promise<T> {
+    const run = this.nominatimQueue.then(fn);
+    this.nominatimQueue = run.then(() => undefined).catch(() => undefined);
+    return run as Promise<T>;
+  }
+
+  private async nominatimFetch(url: string): Promise<Response> {
+    await this.throttleNominatim();
+    let res = await fetch(url, {
+      headers: {
+        'User-Agent': this.userAgent,
+        'Accept': 'application/json',
+      },
+    });
+    if (res.status === 429) {
+      await new Promise((r) => setTimeout(r, NOMINATIM_429_RETRY_AFTER_MS));
+      await this.throttleNominatim();
+      res = await fetch(url, {
+        headers: {
+          'User-Agent': this.userAgent,
+          'Accept': 'application/json',
+        },
+      });
+    }
+    return res;
   }
 
   /**
@@ -113,10 +150,11 @@ export class GeocodingService {
 
     const trimmedQuery = query.trim();
     const resultLimit = Math.min(limit, 10);
-    const googleApiKey = env('GOOGLE_PLACES_API_KEY', null);
+    const googleApiKey = this.getGooglePlacesApiKey();
     // Bias to US when no country specified so queries like "Riverside Indiana cemetery" return on-point results
     const regionCode = countryCode || 'us';
 
+    // 1) Google Places (New) Text Search — always first when a key is configured
     if (googleApiKey) {
       try {
         const googleResults = await this.searchLocationsGoogle(trimmedQuery, resultLimit, regionCode);
@@ -124,14 +162,19 @@ export class GeocodingService {
           return googleResults;
         }
       } catch (error) {
-        console.warn('Google Places search failed, falling back to OpenStreetMap:', error);
+        console.warn('Google Places search failed, falling back to Nominatim:', error);
       }
     }
 
-    // 1) Try Nominatim (OpenStreetMap)
-    let results = await this.searchLocationsNominatim(trimmedQuery, resultLimit, regionCode);
+    // 2) Nominatim (queued + throttled; 429 returns [] instead of throwing)
+    let results: LocationSuggestion[] = [];
+    try {
+      results = await this.searchLocationsNominatim(trimmedQuery, resultLimit, regionCode);
+    } catch (error) {
+      console.warn('Nominatim search failed:', error);
+    }
 
-    // 2) If still empty, try Photon (also OpenStreetMap-based, different index)
+    // 3) Photon when Nominatim is empty or rate-limited (different host; better for bulk)
     if (results.length === 0) {
       try {
         const photonResults = await this.searchLocationsPhoton(trimmedQuery, resultLimit, regionCode);
@@ -164,9 +207,10 @@ export class GeocodingService {
       body.regionCode = regionCode.toLowerCase();
     }
 
+    const key = this.getGooglePlacesApiKey();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'X-Goog-Api-Key': env('GOOGLE_PLACES_API_KEY'),
+      'X-Goog-Api-Key': key || '',
       'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.addressComponents',
     };
 
@@ -249,6 +293,16 @@ export class GeocodingService {
     limit: number,
     countryCode?: string
   ): Promise<LocationSuggestion[]> {
+    return this.runNominatimExclusive(() =>
+      this.searchLocationsNominatimInner(query, limit, countryCode)
+    );
+  }
+
+  private async searchLocationsNominatimInner(
+    query: string,
+    limit: number,
+    countryCode?: string
+  ): Promise<LocationSuggestion[]> {
     const usStatePattern = /\b(Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|Delaware|Florida|Georgia|Hawaii|Idaho|Illinois|Indiana|Iowa|Kansas|Kentucky|Louisiana|Maine|Maryland|Massachusetts|Michigan|Minnesota|Mississippi|Missouri|Montana|Nebraska|Nevada|New Hampshire|New Jersey|New Mexico|New York|North Carolina|North Dakota|Ohio|Oklahoma|Oregon|Pennsylvania|Rhode Island|South Carolina|South Dakota|Tennessee|Texas|Utah|Vermont|Virginia|Washington|West Virginia|Wisconsin|Wyoming)\b/i;
     const looksLikeUS = usStatePattern.test(query) || /\b(USA|United States|U\.?S\.?A\.?)\b/i.test(query);
     const countryCodes = countryCode ? countryCode.toLowerCase() : looksLikeUS ? 'us' : undefined;
@@ -269,15 +323,12 @@ export class GeocodingService {
       params.append('countrycodes', countryCodes);
     }
 
-    await this.throttleNominatim();
-    const response = await fetch(`${this.baseUrl}/search?${params.toString()}`, {
-      headers: {
-        'User-Agent': this.userAgent,
-        'Accept': 'application/json',
-      },
-    });
-
+    const response = await this.nominatimFetch(`${this.baseUrl}/search?${params.toString()}`);
     if (!response.ok) {
+      if (response.status === 429) {
+        console.warn('Nominatim rate limit (429); skipping Nominatim for this query.');
+        return [];
+      }
       throw new Error(`Nominatim API error: ${response.status}`);
     }
 
@@ -293,13 +344,14 @@ export class GeocodingService {
         limit: limit.toString(),
         countrycodes: 'us',
       });
-      await this.throttleNominatim();
-      const fallbackResponse = await fetch(`${this.baseUrl}/search?${fallbackParams.toString()}`, {
-        headers: { 'User-Agent': this.userAgent, 'Accept': 'application/json' },
-      });
+      const fallbackResponse = await this.nominatimFetch(
+        `${this.baseUrl}/search?${fallbackParams.toString()}`
+      );
       if (fallbackResponse.ok) {
         const fallbackData = await fallbackResponse.json();
         results = this.mapSearchResults(Array.isArray(fallbackData) ? fallbackData : []);
+      } else if (fallbackResponse.status === 429) {
+        return results;
       }
     }
 
@@ -314,13 +366,12 @@ export class GeocodingService {
         limit: limit.toString(),
         countrycodes: 'us',
       });
-      await this.throttleNominatim();
-      const altResponse = await fetch(`${this.baseUrl}/search?${altParams.toString()}`, {
-        headers: { 'User-Agent': this.userAgent, 'Accept': 'application/json' },
-      });
+      const altResponse = await this.nominatimFetch(`${this.baseUrl}/search?${altParams.toString()}`);
       if (altResponse.ok) {
         const altData = await altResponse.json();
         results = this.mapSearchResults(Array.isArray(altData) ? altData : []);
+      } else if (altResponse.status === 429) {
+        return results;
       }
     }
 
@@ -402,50 +453,37 @@ export class GeocodingService {
       addressdetails: '1',
     });
 
-    const doRequest = async (): Promise<Response> => {
-      await this.throttleNominatim();
-      return fetch(`${this.baseUrl}/reverse?${params.toString()}`, {
-        headers: {
-          'User-Agent': this.userAgent,
-          'Accept': 'application/json',
-        },
-      });
-    };
+    return this.runNominatimExclusive(async () => {
+      try {
+        const response = await this.nominatimFetch(`${this.baseUrl}/reverse?${params.toString()}`);
 
-    try {
-      let response = await doRequest();
+        if (response.status === 429) {
+          console.warn('Nominatim rate limit (429); skipping reverse geocode.');
+          return null;
+        }
 
-      if (response.status === 429) {
-        await new Promise((r) => setTimeout(r, NOMINATIM_429_RETRY_AFTER_MS));
-        response = await doRequest();
+        if (!response.ok) {
+          throw new Error(`Nominatim API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.error) {
+          return null;
+        }
+
+        return {
+          placeId: data.place_id?.toString() || '',
+          displayName: data.display_name || '',
+          address: this.mapAddress(data.address || {}),
+          lat: data.lat || '',
+          lon: data.lon || '',
+        };
+      } catch (error) {
+        console.error('Reverse geocoding error:', error);
+        throw error;
       }
-
-      if (response.status === 429) {
-        console.warn('Nominatim rate limit (429) after retry; skipping reverse geocode.');
-        return null;
-      }
-
-      if (!response.ok) {
-        throw new Error(`Nominatim API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      if (data.error) {
-        return null;
-      }
-
-      return {
-        placeId: data.place_id?.toString() || '',
-        displayName: data.display_name || '',
-        address: this.mapAddress(data.address || {}),
-        lat: data.lat || '',
-        lon: data.lon || '',
-      };
-    } catch (error) {
-      console.error('Reverse geocoding error:', error);
-      throw error;
-    }
+    });
   }
 
   /**
@@ -475,25 +513,26 @@ export class GeocodingService {
     if (postalCode) params.append('postalcode', postalCode);
     if (country) params.append('country', country);
 
-    try {
-      await this.throttleNominatim();
-      const response = await fetch(`${this.baseUrl}/search?${params.toString()}`, {
-        headers: {
-          'User-Agent': this.userAgent,
-          'Accept': 'application/json',
-        },
-      });
+    return this.runNominatimExclusive(async () => {
+      try {
+        const response = await this.nominatimFetch(`${this.baseUrl}/search?${params.toString()}`);
 
-      if (!response.ok) {
-        throw new Error(`Nominatim API error: ${response.status}`);
+        if (response.status === 429) {
+          console.warn('Nominatim rate limit (429); structured search returned empty.');
+          return [];
+        }
+
+        if (!response.ok) {
+          throw new Error(`Nominatim API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return this.mapSearchResults(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error('Structured geocoding error:', error);
+        throw error;
       }
-
-      const data = await response.json();
-      return this.mapSearchResults(data);
-    } catch (error) {
-      console.error('Structured geocoding error:', error);
-      throw error;
-    }
+    });
   }
 
   private mapSearchResults(data: any[]): LocationSuggestion[] {
