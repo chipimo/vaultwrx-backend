@@ -7,6 +7,7 @@ import { ControllerBase } from '@base/infrastructure/abstracts/ControllerBase';
 import { FuneralDirectorUpdateRequest } from '@api/requests/Users/FuneralDirectorUpdateRequest';
 import { OpenAPI } from 'routing-controllers-openapi';
 import { RequestQueryParser } from 'typeorm-simple-query-parser';
+import { CreatePrimaryContactRequest } from '@api/requests/Users/CreatePrimaryContactRequest';
 
 @Service()
 @OpenAPI({
@@ -33,10 +34,26 @@ export class FuneralDirectorController extends ControllerBase {
     return await this.funeralDirectorService.findOneById(id, resourceOptions);
   }
 
+  @Get('/customer/:customerId')
+  public async getPrimaryContactsByCustomer(@Param('customerId') customerId: string) {
+    return await this.funeralDirectorService.getPrimaryContactsByCustomer(customerId);
+  }
+
+  @Get('/company/:companyId')
+  public async getPrimaryContactsByCompany(@Param('companyId') companyId: string) {
+    return await this.funeralDirectorService.getPrimaryContactsByCompany(companyId);
+  }
+
   @Post()
   @HttpCode(201)
   public async create(@Body() funeralDirector: FuneralDirectorCreateRequest) {
     return await this.funeralDirectorService.create(funeralDirector);
+  }
+
+  @Post('/primary-contact')
+  @HttpCode(201)
+  public async createPrimaryContact(@Body() payload: CreatePrimaryContactRequest) {
+    return await this.funeralDirectorService.createPrimaryContact(payload);
   }
 
   @Put('/:id')
