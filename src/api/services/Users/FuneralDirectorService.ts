@@ -48,8 +48,8 @@ export class FuneralDirectorService {
       .createQueryBuilder('contact')
       .leftJoinAndSelect('contact.customer', 'customer')
       .where('contact.customer_id = :customerId', { customerId })
-      .andWhere('contact.is_primary = :isPrimary', { isPrimary: true })
-      .orderBy('contact.created_at', 'ASC')
+      .orderBy('contact.isPrimary', 'DESC')
+      .addOrderBy('contact.createdAt', 'ASC')
       .getMany();
 
     return {
@@ -75,8 +75,8 @@ export class FuneralDirectorService {
       .createQueryBuilder('contact')
       .leftJoinAndSelect('contact.customer', 'customer')
       .where('customer.company_id = :companyId', { companyId })
-      .andWhere('contact.is_primary = :isPrimary', { isPrimary: true })
-      .orderBy('contact.created_at', 'ASC')
+      .orderBy('contact.isPrimary', 'DESC')
+      .addOrderBy('contact.createdAt', 'ASC')
       .getMany();
 
     return {

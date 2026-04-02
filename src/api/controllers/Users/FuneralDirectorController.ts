@@ -27,13 +27,6 @@ export class FuneralDirectorController extends ControllerBase {
     return await this.funeralDirectorService.getAll(resourceOptions);
   }
 
-  @Get('/:id([0-9]+)')
-  public async getOne(@Param('id') id: number, @QueryParams() parseResourceOptions: RequestQueryParser) {
-    const resourceOptions = parseResourceOptions.getAll();
-
-    return await this.funeralDirectorService.findOneById(id, resourceOptions);
-  }
-
   @Get('/customer/:customerId')
   public async getPrimaryContactsByCustomer(@Param('customerId') customerId: string) {
     return await this.funeralDirectorService.getPrimaryContactsByCustomer(customerId);
@@ -42,6 +35,13 @@ export class FuneralDirectorController extends ControllerBase {
   @Get('/company/:companyId')
   public async getPrimaryContactsByCompany(@Param('companyId') companyId: string) {
     return await this.funeralDirectorService.getPrimaryContactsByCompany(companyId);
+  }
+
+  @Get('/:id([0-9]+)')
+  public async getOne(@Param('id') id: number, @QueryParams() parseResourceOptions: RequestQueryParser) {
+    const resourceOptions = parseResourceOptions.getAll();
+
+    return await this.funeralDirectorService.findOneById(id, resourceOptions);
   }
 
   @Post()
