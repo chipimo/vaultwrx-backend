@@ -11,6 +11,7 @@ import { Deceased } from './Deceased';
 import { Photo } from './Photo';
 import { OrderExtraCharge } from './OrderExtraCharge';
 import { Location } from '../Products/Location';
+import { MapLocation } from '../Products/MapLocation';
 import { OrderContact } from './OrderContact';
 import { Comment } from './Comment';
 import { Company } from '../Company/Company';
@@ -129,6 +130,16 @@ export class Order extends EntityBase {
   @Field(() => String, { nullable: true })
   @Column({ name: 'location_id', type: 'uuid', nullable: true })
   locationId: string;
+
+  /** Saved map location (cemetery / service site) from `map_locations`, distinct from customer `location_id`. */
+  @Field(() => MapLocation, { nullable: true })
+  @ManyToOne(() => MapLocation, { nullable: true })
+  @JoinColumn({ name: 'cemetery_map_location_id' })
+  cemeteryMapLocation?: MapLocation;
+
+  @Field(() => String, { nullable: true })
+  @Column({ name: 'cemetery_map_location_id', type: 'uuid', nullable: true })
+  cemeteryMapLocationId: string;
 
   @Field({ nullable: true })
   @Column({ name: 'date_of_service', type: 'date', nullable: true })

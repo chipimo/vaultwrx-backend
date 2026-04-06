@@ -63,6 +63,10 @@ export class OrderUpdateRequest {
   locationId?: string;
 
   @IsOptional()
+  @IsUUID()
+  cemeteryMapLocationId?: string;
+
+  @IsOptional()
   @IsDateString()
   dateOfService?: string;
 

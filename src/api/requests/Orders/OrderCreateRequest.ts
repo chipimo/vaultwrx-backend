@@ -62,6 +62,11 @@ export class OrderCreateRequest {
   @IsUUID()
   locationId?: string;
 
+  /** Saved cemetery / service site row in `map_locations` (not customer store `locationId`). */
+  @IsOptional()
+  @IsUUID()
+  cemeteryMapLocationId?: string;
+
   @IsOptional()
   @IsDateString()
   dateOfService?: string;

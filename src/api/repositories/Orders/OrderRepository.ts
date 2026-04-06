@@ -7,6 +7,7 @@ import { Staff } from '@api/models/Users/Staff';
 import { FuneralDirector } from '@api/models/Users/FuneralDirector';
 import { User } from '@api/models/Users/User';
 import { Location } from '@api/models/Products/Location';
+import { MapLocation } from '@api/models/Products/MapLocation';
 import { Company } from '@api/models/Company/Company';
 import { OrderItem } from '@api/models/Orders/OrderItem';
 import { deduplicateObjects } from '@base/infrastructure/utils/deduplicateObjects';
@@ -228,6 +229,18 @@ export class OrderRepository extends RepositoryBase<Order> {
         }
       }
 
+      if (entity.cemeteryMapLocationId) {
+        const mapLocation = await this.manager.findOne(MapLocation, {
+          where: { id: entity.cemeteryMapLocationId },
+        });
+        if (!mapLocation) {
+          throw new Error('Cemetery map location not found');
+        }
+        if (mapLocation.companyId !== companyId) {
+          throw new Error('Cemetery map location does not belong to the specified company');
+        }
+      }
+
       if (entity.userId) {
         const user = await this.manager.findOne(User, {
           where: { id: entity.userId },
@@ -383,6 +396,21 @@ export class OrderRepository extends RepositoryBase<Order> {
         }
         if (location.companyId !== companyId) {
           throw new Error('Location does not belong to the specified company');
+        }
+      }
+
+      if (
+        updateData.cemeteryMapLocationId &&
+        updateData.cemeteryMapLocationId !== order.cemeteryMapLocationId
+      ) {
+        const mapLocation = await this.manager.findOne(MapLocation, {
+          where: { id: updateData.cemeteryMapLocationId },
+        });
+        if (!mapLocation) {
+          throw new Error('Cemetery map location not found');
+        }
+        if (mapLocation.companyId !== companyId) {
+          throw new Error('Cemetery map location does not belong to the specified company');
         }
       }
     }
