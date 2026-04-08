@@ -9,9 +9,21 @@ import { User } from '@api/models/Users/User';
 import { Location } from '@api/models/Products/Location';
 import { MapLocation } from '@api/models/Products/MapLocation';
 import { Company } from '@api/models/Company/Company';
-import { OrderItem } from '@api/models/Orders/OrderItem';
+import { Gender, OrderItem } from '@api/models/Orders/OrderItem';
+import { Deceased } from '@api/models/Orders/Deceased';
 import { deduplicateObjects } from '@base/infrastructure/utils/deduplicateObjects';
 import { ProductType } from '@api/models/Products/Product';
+
+/** Build a calendar date from Y / M / D parts sent by the place-order form (strings). */
+function parseDeceasedDatePart(year?: string, month?: string, day?: string): Date | null {
+  const y = (year || '').trim();
+  if (!y || !/^\d{4}$/.test(y)) return null;
+  const m = ((month || '1').trim() || '1').padStart(2, '0');
+  const d = ((day || '1').trim() || '1').padStart(2, '0');
+  const iso = `${y}-${m}-${d}`;
+  const dt = new Date(`${iso}T12:00:00`);
+  return Number.isNaN(dt.getTime()) ? null : dt;
+}
 
 @EntityRepository(Order)
 export class OrderRepository extends RepositoryBase<Order> {
@@ -253,9 +265,51 @@ export class OrderRepository extends RepositoryBase<Order> {
       }
     }
 
+    const payload = data as Record<string, any>;
+
     // Extract orderItems from data before saving (they're not part of Order entity)
-    const orderItemsData = (data as any).orderItems || [];
-    delete (entity as any).orderItems; // Remove orderItems from entity to avoid saving them directly
+    const orderItemsData = payload.orderItems || [];
+    delete (entity as any).orderItems;
+
+    // Place-order API sends flat deceased* fields; Deceased is a separate table.
+    const deceasedNameRaw =
+      typeof payload.deceasedName === 'string' ? payload.deceasedName.trim() : '';
+    const deceasedDobDay =
+      typeof payload.deceasedDobDay === 'string' ? payload.deceasedDobDay : '';
+    const deceasedDobMonth =
+      typeof payload.deceasedDobMonth === 'string' ? payload.deceasedDobMonth : '';
+    const deceasedDobYear =
+      typeof payload.deceasedDobYear === 'string' ? payload.deceasedDobYear : '';
+    const deceasedDodDay =
+      typeof payload.deceasedDodDay === 'string' ? payload.deceasedDodDay : '';
+    const deceasedDodMonth =
+      typeof payload.deceasedDodMonth === 'string' ? payload.deceasedDodMonth : '';
+    const deceasedDodYear =
+      typeof payload.deceasedDodYear === 'string' ? payload.deceasedDodYear : '';
+    const deceasedHeight =
+      typeof payload.deceasedHeight === 'string' ? payload.deceasedHeight.trim() : '';
+    const deceasedWeight =
+      typeof payload.deceasedWeight === 'string' ? payload.deceasedWeight.trim() : '';
+    const deceasedGender =
+      typeof payload.deceasedGender === 'string' ? payload.deceasedGender : '';
+    const deceasedEmbalmed = payload.deceasedEmbalmed;
+
+    for (const key of [
+      'primaryContactIds',
+      'deceasedName',
+      'deceasedDobDay',
+      'deceasedDobMonth',
+      'deceasedDobYear',
+      'deceasedDodDay',
+      'deceasedDodMonth',
+      'deceasedDodYear',
+      'deceasedHeight',
+      'deceasedWeight',
+      'deceasedGender',
+      'deceasedEmbalmed'
+    ]) {
+      delete (entity as any)[key];
+    }
 
     // Save the order first
     const savedOrder = await this.save(entity);
@@ -336,11 +390,42 @@ export class OrderRepository extends RepositoryBase<Order> {
       }
     }
 
+    if (deceasedNameRaw) {
+      let genderVal: Gender | null = null;
+      if (deceasedGender === Gender.MALE || deceasedGender === 'male') {
+        genderVal = Gender.MALE;
+      } else if (deceasedGender === Gender.FEMALE || deceasedGender === 'female') {
+        genderVal = Gender.FEMALE;
+      }
+
+      const deceased = new Deceased();
+      deceased.orderId = savedOrder.id;
+      deceased.name = deceasedNameRaw;
+      deceased.birthDate = parseDeceasedDatePart(
+        deceasedDobYear,
+        deceasedDobMonth,
+        deceasedDobDay
+      );
+      deceased.deathDate = parseDeceasedDatePart(
+        deceasedDodYear,
+        deceasedDodMonth,
+        deceasedDodDay
+      );
+      deceased.height = deceasedHeight || null;
+      deceased.weight = deceasedWeight || null;
+      deceased.gender = genderVal;
+      deceased.isEmbalmed =
+        typeof deceasedEmbalmed === 'boolean' ? deceasedEmbalmed : null;
+
+      await this.manager.getRepository(Deceased).save(deceased);
+    }
+
     // Reload the order with orderItems
     const orderWithItems = await this.createQueryBuilder('order')
       .leftJoinAndSelect('order.orderItems', 'orderItems')
       .leftJoinAndSelect('orderItems.product', 'orderItemsProduct')
       .leftJoinAndSelect('orderItems.paintColor', 'orderItemsPaintColor')
+      .leftJoinAndSelect('order.deceased', 'deceased')
       .where('order.id = :id', { id: savedOrder.id })
       .getOne();
     
