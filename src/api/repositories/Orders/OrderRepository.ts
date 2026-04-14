@@ -1,5 +1,5 @@
-import { Order } from '@api/models/Orders/Order';
-import { EntityRepository } from 'typeorm';
+import { Order, OrderStatus } from '@api/models/Orders/Order';
+import { Brackets, EntityRepository } from 'typeorm';
 import { RepositoryBase } from '@base/infrastructure/abstracts/RepositoryBase';
 import { Customer } from '@api/models/Users/Customer';
 import { Retailer } from '@api/models/Users/Retailer';
@@ -433,8 +433,10 @@ export class OrderRepository extends RepositoryBase<Order> {
   }
 
   public async updateOrder(order: Order, data: object, companyId?: string) {
+    const patch = { ...(data as Record<string, unknown>) };
+
     if (companyId) {
-      const updateData = data as any;
+      const updateData = patch as any;
 
       if (updateData.customerId && updateData.customerId !== order.customerId) {
         const customer = await this.manager.findOne(Customer, {
@@ -500,7 +502,31 @@ export class OrderRepository extends RepositoryBase<Order> {
       }
     }
 
-    Object.assign(order, data);
+    // Soft-delete: remove from active / ongoing tracking lists
+    if (patch.isDeleted === true && patch.orderDStatus === undefined) {
+      patch.orderDStatus = null;
+    }
+
+    // Keep workflow fields aligned with `status` so ongoing / tracking queries stay correct
+    if (patch.orderDStatus === undefined && typeof patch.status === 'string') {
+      const statusVal = patch.status as OrderStatus;
+      if (statusVal === OrderStatus.DELIVERED) {
+        if (patch.delivered === undefined) {
+          patch.delivered = true;
+        }
+        patch.orderDStatus = null;
+      } else if (
+        statusVal === OrderStatus.COMPLETED ||
+        statusVal === OrderStatus.CANCELLED ||
+        statusVal === OrderStatus.RETURNED
+      ) {
+        patch.orderDStatus = null;
+      } else if (statusVal === OrderStatus.IN_PROGRESS) {
+        patch.orderDStatus = 'ongoing';
+      }
+    }
+
+    Object.assign(order, patch);
 
     return await this.save(order);
   }
@@ -622,7 +648,7 @@ export class OrderRepository extends RepositoryBase<Order> {
    * Structure: [{ "date": "YYYY-MM-DD", "vaults": [...], "caskets": [...], ... }, ...]
    * If productType is provided, only returns orders with that product type and only that type in the response
    * If orderStatus is provided, filters orders by their status:
-   *   - 'ongoing': orders where orderDStatus = 'ongoing' AND confirmed = true
+   *   - 'ongoing': confirmed, not deleted, not delivered, status not delivered/completed/cancelled; orderDStatus is 'ongoing' or null; service date today/future/null, or (temporary) past dates in 2026 only
    *   - 'confirmed': orders where confirmed = true AND orderDStatus != 'ongoing'
    *   - 'pending': orders where confirmed = false AND orderDStatus != 'ongoing'
    *   - 'past': orders where dateOfService < today
@@ -677,12 +703,42 @@ export class OrderRepository extends RepositoryBase<Order> {
     // Apply base filters based on orderStatus
     switch (orderStatus) {
       case 'ongoing':
-        // Ongoing orders: orderDStatus = 'ongoing' AND confirmed = true (current only)
+        // Active pipeline: confirmed, not soft-deleted, not delivered, service date still current (or unset).
+        // `order_d_status` may be 'ongoing' or null (legacy rows); exclude finished statuses.
         queryBuilder
-          .where('order.order_d_status = :orderDStatus', { orderDStatus: 'ongoing' })
-          .andWhere('order.confirmed = :confirmed', { confirmed: true })
+          .where('order.confirmed = :confirmed', { confirmed: true })
           .andWhere('order.is_deleted = :isDeleted', { isDeleted: false })
-          .andWhere('(order.date_of_service >= :today OR order.date_of_service IS NULL)', { today });
+          .andWhere('order.delivered = :delivered', { delivered: false })
+          .andWhere(
+            '(order.order_d_status = :ongoingDs OR order.order_d_status IS NULL)',
+            { ongoingDs: 'ongoing' }
+          )
+          .andWhere('order.status NOT IN (:...ongoingExcludedStatuses)', {
+            ongoingExcludedStatuses: [
+              OrderStatus.DELIVERED,
+              OrderStatus.COMPLETED,
+              OrderStatus.CANCELLED,
+            ],
+          })
+          .andWhere(
+            new Brackets((qb) => {
+              // Normal rule: today or future service date, or unset.
+              qb.where(
+                '(order.date_of_service >= :ongoingToday OR order.date_of_service IS NULL)',
+                { ongoingToday: today }
+              ).orWhere(
+                new Brackets((qb2) => {
+                  // TEMPORARY: include past-dated rows only if service year is 2026 (hide past orders from 2025 and earlier years).
+                  qb2
+                    .where('order.date_of_service < :ongoingToday', { ongoingToday: today })
+                    .andWhere(
+                      'EXTRACT(YEAR FROM order.date_of_service) = :ongoingTempYear2026',
+                      { ongoingTempYear2026: 2026 }
+                    );
+                })
+              );
+            })
+          );
         break;
       case 'confirmed':
         // Confirmed orders: confirmed = true AND orderDStatus != 'ongoing' (current only)
@@ -718,9 +774,17 @@ export class OrderRepository extends RepositoryBase<Order> {
           .andWhere('order.is_deleted = :isDeleted', { isDeleted: false });
         break;
       default:
-        // Default: current orders only (date >= today or null)
+        // Default: current, non-deleted, not fully delivered (same idea as dashboard tracking)
         queryBuilder
           .where('order.is_deleted = :isDeleted', { isDeleted: false })
+          .andWhere('order.delivered = :delivered', { delivered: false })
+          .andWhere('order.status NOT IN (:...defaultExcludedStatuses)', {
+            defaultExcludedStatuses: [
+              OrderStatus.DELIVERED,
+              OrderStatus.COMPLETED,
+              OrderStatus.CANCELLED,
+            ],
+          })
           .andWhere('(order.date_of_service >= :today OR order.date_of_service IS NULL)', { today });
         break;
     }
