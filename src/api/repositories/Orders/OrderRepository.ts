@@ -648,7 +648,7 @@ export class OrderRepository extends RepositoryBase<Order> {
    * Structure: [{ "date": "YYYY-MM-DD", "vaults": [...], "caskets": [...], ... }, ...]
    * If productType is provided, only returns orders with that product type and only that type in the response
    * If orderStatus is provided, filters orders by their status:
-   *   - 'ongoing': confirmed, not deleted, not delivered, status not delivered/completed/cancelled; orderDStatus is 'ongoing' or null; service date today/future/null, or (temporary) past dates in 2026 only
+   *   - 'ongoing': confirmed, not deleted, not delivered, status not delivered/completed/cancelled; orderDStatus is 'ongoing' or null; service date today/future/null, or past dates with service year >= 2020
    *   - 'confirmed': orders where confirmed = true AND orderDStatus != 'ongoing'
    *   - 'pending': orders where confirmed = false AND orderDStatus != 'ongoing'
    *   - 'past': orders where dateOfService < today
@@ -728,12 +728,12 @@ export class OrderRepository extends RepositoryBase<Order> {
                 { ongoingToday: today }
               ).orWhere(
                 new Brackets((qb2) => {
-                  // TEMPORARY: include past-dated rows only if service year is 2026 (hide past orders from 2025 and earlier years).
+                  // Past-dated service rows: include multi-year backlog (not only current calendar year).
                   qb2
                     .where('order.date_of_service < :ongoingToday', { ongoingToday: today })
                     .andWhere(
-                      'EXTRACT(YEAR FROM order.date_of_service) = :ongoingTempYear2026',
-                      { ongoingTempYear2026: 2026 }
+                      'EXTRACT(YEAR FROM order.date_of_service) >= :ongoingPastYearMin',
+                      { ongoingPastYearMin: 2020 }
                     );
                 })
               );
@@ -799,8 +799,7 @@ export class OrderRepository extends RepositoryBase<Order> {
       const subQuery = this.createQueryBuilder('order')
         .innerJoin('order.orderItems', 'orderItems')
         .where('orderItems.productType = :productType', { productType })
-        .andWhere('order.is_deleted = :isDeleted', { isDeleted: false })
-        .andWhere('order.date_of_service IS NOT NULL');
+        .andWhere('order.is_deleted = :isDeleted', { isDeleted: false });
       
       if (companyId) {
         subQuery.andWhere('order.company_id = :companyId', { companyId });
@@ -829,16 +828,17 @@ export class OrderRepository extends RepositoryBase<Order> {
 
     const orders = await queryBuilder.getMany();
 
+    /** Bucket for orders missing a service date (still match ongoing SQL); shown first in grouped response. */
+    const NO_SERVICE_DATE_KEY = 'no-service-date';
+
     const grouped: Record<string, Record<string, Order[]>> = {};
 
     orders.forEach((order) => {
-      if (!order.dateOfService) {
-        return; 
-      }
-
-      const dateKey = order.dateOfService instanceof Date
-        ? order.dateOfService.toISOString().split('T')[0]
-        : new Date(order.dateOfService).toISOString().split('T')[0];
+      const dateKey = order.dateOfService
+        ? order.dateOfService instanceof Date
+          ? order.dateOfService.toISOString().split('T')[0]
+          : new Date(order.dateOfService).toISOString().split('T')[0]
+        : NO_SERVICE_DATE_KEY;
 
       if (!grouped[dateKey]) {
         grouped[dateKey] = {
@@ -904,7 +904,11 @@ export class OrderRepository extends RepositoryBase<Order> {
     };
 
     const result = Object.keys(grouped)
-      .sort() 
+      .sort((a, b) => {
+        if (a === NO_SERVICE_DATE_KEY) return -1;
+        if (b === NO_SERVICE_DATE_KEY) return 1;
+        return a.localeCompare(b);
+      })
       .map((dateKey) => {
         const dateGroup = grouped[dateKey];
         
