@@ -1,7 +1,7 @@
 import { Param, Get, JsonController, Post, Body, Put, Delete, HttpCode, UseBefore, QueryParams, Req } from 'routing-controllers';
 import { CustomerService } from '@api/services/Users/CustomerService';
 import { Service } from 'typedi';
-import { CustomerCreateRequest } from '@api/requests/Users/CustomerCreateRequest';
+import { CustomerWithUserCreateRequest } from '@api/requests/Users/CustomerWithUserCreateRequest';
 import { AuthCheck } from '@base/infrastructure/middlewares/Auth/AuthCheck';
 import { ControllerBase } from '@base/infrastructure/abstracts/ControllerBase';
 import { CustomerUpdateRequest } from '@api/requests/Users/CustomerUpdateRequest';
@@ -41,11 +41,11 @@ export class CustomerController extends ControllerBase {
 
   @Post()
   @HttpCode(201)
-  public async create(@Body() customer: CustomerCreateRequest, @Req() req: Request) {
+  public async create(@Body() customer: CustomerWithUserCreateRequest, @Req() req: Request) {
     const companyId = (req.headers['company-id'] || req.headers['x-company-id']) as string;
     if (!companyId) throw new NotFoundError('Company ID is required in the headers.');
 
-    return await this.customerService.create(customer, companyId);
+    return await this.customerService.createWithUser(customer, companyId);
   }
 
   @Put('/:id')

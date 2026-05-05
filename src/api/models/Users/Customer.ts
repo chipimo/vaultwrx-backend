@@ -5,6 +5,14 @@ import { User } from './User';
 import { Company } from '../Company/Company';
 import { Order } from '../Orders/Order';
 
+/** Stored in customers.pricelist_selections (jsonb). */
+export interface CustomerPricelistSelection {
+  categoryId: string;
+  enabled: boolean;
+  pricelistId?: string | null;
+  locationId?: string | null;
+}
+
 @ObjectType()
 @Entity({ name: 'customers' })
 export class Customer extends EntityBase {
@@ -61,6 +69,53 @@ export class Customer extends EntityBase {
   @Field()
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
+
+  @Field({ nullable: true })
+  @Column({ name: 'business_name', nullable: true })
+  businessName: string;
+
+  @Field({ nullable: true })
+  @Column({ name: 'business_email', nullable: true })
+  businessEmail: string;
+
+  @Field({ nullable: true })
+  @Column({ name: 'fax', nullable: true })
+  fax: string;
+
+  @Field({ nullable: true })
+  @Column({ name: 'country', nullable: true })
+  country: string;
+
+  @Field({ nullable: true })
+  @Column({ name: 'contact_phone', nullable: true })
+  contactPhone: string;
+
+  @Field({ nullable: true })
+  @Column({ name: 'sales_representative', nullable: true })
+  salesRepresentative: string;
+
+  @Field({ nullable: true })
+  @Column({ name: 'billing_option', nullable: true })
+  billingOption: string;
+
+  @Field({ nullable: true })
+  @Column({ name: 'tags', nullable: true })
+  tags: string;
+
+  @Field({ nullable: true })
+  @Column({ name: 'special_order_instructions', type: 'text', nullable: true })
+  specialOrderInstructions: string;
+
+  @Field({ nullable: true })
+  @Column({ name: 'notes', type: 'text', nullable: true })
+  notes: string;
+
+  @Column({ name: 'pricelist_selections', type: 'jsonb', nullable: true })
+  pricelistSelections: CustomerPricelistSelection[] | null;
+
+  @Field({ nullable: true })
+  @Column({ name: 'allow_customer_see_prices', default: false })
+  allowCustomerSeePrices: boolean;
 
   // Order relationships
   @Field(() => [Order], { nullable: true })
