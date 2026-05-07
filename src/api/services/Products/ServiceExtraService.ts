@@ -11,8 +11,12 @@ export class ServiceExtraService {
     @EventDispatcher() private eventDispatcher: EventDispatcherInterface
   ) {}
 
-  public async getAll(resourceOptions?: object, companyId?: string) {
-    return await this.serviceExtraRepository.getManyAndCount(resourceOptions, companyId);
+  public async getAll(
+    resourceOptions?: object,
+    companyId?: string,
+    extra?: { category?: string; skip?: number; take?: number }
+  ) {
+    return await this.serviceExtraRepository.getManyAndCount(resourceOptions, companyId, extra);
   }
 
   public async findOneById(id: string, resourceOptions?: object, companyId?: string) {
@@ -33,12 +37,23 @@ export class ServiceExtraService {
     return await this.serviceExtraRepository.updateServiceExtra(serviceExtra, data);
   }
 
+  /**
+   * Delete a service extra and remove it from any price list it was
+   * attached to. Without the junction cleanup the price-list detail
+   * endpoint would surface dangling rows with null names.
+   */
   public async deleteOneById(id: string, companyId?: string) {
-    if (companyId) {
-      const serviceExtra = await this.getRequestedServiceExtraOrFail(id, undefined, companyId);
-      return await this.serviceExtraRepository.delete(serviceExtra.id);
-    }
-    return await this.serviceExtraRepository.delete(id);
+    const serviceExtra = companyId
+      ? await this.getRequestedServiceExtraOrFail(id, undefined, companyId)
+      : null;
+    const targetId = serviceExtra?.id ?? id;
+
+    await this.serviceExtraRepository.manager.query(
+      `DELETE FROM price_list_extras WHERE service_extra_id = $1`,
+      [targetId]
+    );
+
+    return await this.serviceExtraRepository.delete(targetId);
   }
 
   private async getRequestedServiceExtraOrFail(id: string, resourceOptions?: object, companyId?: string) {

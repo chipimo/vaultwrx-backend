@@ -7,7 +7,6 @@ import { Staff } from '@api/models/Users/Staff';
 import { FuneralDirector } from '@api/models/Users/FuneralDirector';
 import { User } from '@api/models/Users/User';
 import { Location } from '@api/models/Products/Location';
-import { MapLocation } from '@api/models/Products/MapLocation';
 import { Company } from '@api/models/Company/Company';
 import { Gender, OrderItem } from '@api/models/Orders/OrderItem';
 import { Deceased } from '@api/models/Orders/Deceased';
@@ -242,7 +241,7 @@ export class OrderRepository extends RepositoryBase<Order> {
       }
 
       if (entity.cemeteryMapLocationId) {
-        const mapLocation = await this.manager.findOne(MapLocation, {
+        const mapLocation = await this.manager.findOne(Location, {
           where: { id: entity.cemeteryMapLocationId },
         });
         if (!mapLocation) {
@@ -490,7 +489,7 @@ export class OrderRepository extends RepositoryBase<Order> {
         updateData.cemeteryMapLocationId &&
         updateData.cemeteryMapLocationId !== order.cemeteryMapLocationId
       ) {
-        const mapLocation = await this.manager.findOne(MapLocation, {
+        const mapLocation = await this.manager.findOne(Location, {
           where: { id: updateData.cemeteryMapLocationId },
         });
         if (!mapLocation) {

@@ -27,7 +27,16 @@ export class ServiceExtraController extends ControllerBase {
     if (!companyId) throw new NotFoundError('Company ID is required in the headers.');
 
     const resourceOptions = parseResourceOptions.getAll();
-    return await this.serviceExtraService.getAll(resourceOptions, companyId);
+
+    const category = (req.query.category as string) || undefined;
+    const skip = req.query.skip !== undefined ? Number(req.query.skip) : undefined;
+    const take = req.query.take !== undefined ? Number(req.query.take) : undefined;
+
+    return await this.serviceExtraService.getAll(resourceOptions, companyId, {
+      category,
+      skip,
+      take,
+    });
   }
 
   @Get('/:id')

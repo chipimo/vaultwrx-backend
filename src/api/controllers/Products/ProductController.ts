@@ -51,7 +51,19 @@ export class ProductController extends ControllerBase {
     if (!companyId) throw new NotFoundError('Company ID is required in the headers.');
 
     const resourceOptions = parseResourceOptions.getAll();
-    return await this.productService.getAll(resourceOptions, companyId);
+
+    // Direct query params bypass the unreliable filters[…] parser.
+    const retailerCategoryId = (req.query.retailerCategoryId as string) || undefined;
+    const type = (req.query.type as string) || undefined;
+    const skip = req.query.skip !== undefined ? Number(req.query.skip) : undefined;
+    const take = req.query.take !== undefined ? Number(req.query.take) : undefined;
+
+    return await this.productService.getAll(resourceOptions, companyId, {
+      retailerCategoryId,
+      type,
+      skip,
+      take,
+    });
   }
 
   @Get('/grouped-by-type')

@@ -1,5 +1,6 @@
 import { authConfig } from '@base/config/auth';
 import * as jwt from 'jsonwebtoken';
+import type { SignOptions } from 'jsonwebtoken';
 
 export class JWTProvider {
   public sign(payload: object, dataReturn: object): object {
